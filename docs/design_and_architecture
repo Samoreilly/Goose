@@ -1,0 +1,40 @@
+
+Non-relational databse
+Columnar oriented storage, meaning columns are stored are as rows for speed & locality
+
+
+Database will consist of a few components(Will change later on, most likely)
+
+
+Query lang: Will likely choose SQL
+
+
+Query:
+    - Lexer
+    - Parser
+
+Storage-engine:
+    Write ahead log
+    Several threads to handle incoming queries from our Ring Buffer
+    - See the disruptor paper in paper_docs.txt
+
+
+
+
+
+
+Priority list(rough idea):
+
+- Read papers listed in paper_docs.txt
+- 
+
+
+
+
+Low priority bc implemented a multitude of lexers, parser in other projects
+- Lexer
+- Parser
+
+
+        
+

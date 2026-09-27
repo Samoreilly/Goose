@@ -1,0 +1,9 @@
+
+
+class Ingestion {
+
+public:
+
+    Ingestion() {}
+
+};

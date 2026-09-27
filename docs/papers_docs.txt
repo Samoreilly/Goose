@@ -1,0 +1,14 @@
+
+Research papers, learnings and documentation will be linked here to reference later 
+
+Docs:
+https://www.vldb.org/pvldb/vol8/p1816-teller.pdf
+Note to self: This contains compression algo notes
+
+https://lmax-exchange.github.io/disruptor/files/Disruptor-1.0.pdf
+This is about Ring Buffer solution
+
+
+
+
+
