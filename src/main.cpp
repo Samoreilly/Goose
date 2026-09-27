@@ -1,5 +1,8 @@
 
+#include <print>
+
 #include "dsa/RingBuffer.h"
+#include "ingestion.h"
 
 void producer(RingBuffer<int, 65536>* ring_buffer) {
 
@@ -17,23 +20,8 @@ int main() {
 
     std::println("GooseTSDB started");
 
-    RingBuffer<int, 65536> ring_buffer;
-
-    std::thread producers[1] = {
-        std::thread(producer, &ring_buffer)
-    };
-
-    std::thread consumers[3] = {
-        std::thread(consumer, &ring_buffer),
-        std::thread(consumer, &ring_buffer),
-        std::thread(consumer, &ring_buffer),
-    };
-
-    for (auto& t : producers)
-        t.join();
-    for (auto& t : consumers)
-        t.join();
-
+    Ingestion<int, 65536> ingestor;
+    ingestor.start();
 
     return 0;
 }

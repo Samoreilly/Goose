@@ -1,5 +1,5 @@
+#pragma once
 
-#include <print>
 #include <atomic>
 #include <thread>
 
@@ -11,7 +11,7 @@ template<typename T, size_t SIZE>
 class RingBuffer {
 
     T buffer[SIZE];
-    std::atomic<size_t> /* write */ head {0}, /* read */ tail {0};
+    alignas(8) std::atomic<size_t> /* write */ head {0}, /* read */ tail {0};
 
 public:
 
@@ -30,7 +30,7 @@ bool RingBuffer<T, SIZE>::add(const T& data) {
     size_t curr_head = head.load(std::memory_order_relaxed);
     size_t curr_tail = tail.load(std::memory_order_acquire);
 
-    //full and also unlikely as there is a high consumer to producer ratio
+    //check if full. This is unlikely as there is a high consumer to producer ratio
     if(curr_head - curr_tail >= SIZE) [[unlikely]] return false;
 
     buffer[curr_head & (SIZE - 1)] = data;
