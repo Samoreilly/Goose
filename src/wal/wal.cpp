@@ -5,18 +5,22 @@
 #include <fstream>
 #include <iostream>
 #include <fcntl.h>
+#include <unistd.h>
 
 
 
-//   4     28
+//   4     24
 // [crc][payload]
 void Wal::append(const Tick& data) {
 
    const size_t S = sizeof(Tick);
-   uint8_t* p = &buffer[used];
+   uint8_t* p = buffer;
    
    if(used + 4 + S > BUFFER_SIZE_B) {
-      flush();
+      if(!flush()) {
+         std::println("Flush failed");
+      }
+
       std::println("Clearing buffer and writing to disk");
       return; 
    }
@@ -32,25 +36,91 @@ void Wal::append(const Tick& data) {
 }
 
 
-void Wal::flush() {
+bool Wal::flush() {
 
-   std::filesystem::path file_path = folder_name + std::to_string(file_counter);
-   std::ofstream f(file_path, std::ios::app);
-   
-   const size_t file_size = std::filesystem::file_size(file_path);
-   
-   if(file_size + BUFFER_SIZE_B > MAX_FILE_SIZE_B) {
+   if(used == 0) return true;
+
+   //If [file_counter].wal has no space, flush and
+   if(fd != -1 && current_size > 0 && current_size + used > MAX_FILE_SIZE_B) {
+      if(fsync(fd) != 0) return false;
+
+      int rc = close(fd);
+      fd = -1;
+      current_size = 0;
       file_counter++;
-      flush();//try again
-      return;
+      
+      if(rc != 0) return false;
    }
 
-   int fd = open(file_path.c_str(), O_WRONLY);
-   if(fd == -1) {}
+   std::filesystem::path file_path = folder_name + std::to_string(file_counter) + ".wal";  
 
-   write(fd, buffer, BUFFER_SIZE_B);
+   if(fd == -1) {
+      fd = open(file_path.c_str(), O_WRONLY | O_APPEND | O_CREAT, 0644);
+      if(fd == -1) return false;
 
-   std::println("Flushed to {}", file_path.c_str());
+      if(!fsync_dir(folder_name.c_str())) {
+         close(fd);
+         fd = -1;
+         return false;
+      }
+   }
+
+  
+   if(!write_bytes(fd, buffer, used)) {    
+      std::println("Failed to write bytes to {}", file_path.c_str());
+   }
+
+   //Data potentially not safe so return false;
+   if(fsync(fd) != 0) {
+      return false;
+   }
+
+   current_size += used;
+   used = 0;
+
+   std::println("Flushed");
+   return true;
+}
+
+
+//checks for error during writing to file
+//prevents corrupted bytes/data
+bool Wal::write_bytes(int fd, uint8_t buffer[], size_t count) {
+
+    uint8_t* ptr = buffer;
+    size_t remaining = count;
+
+    while (remaining > 0) {
+
+      ssize_t written = write(fd, ptr, remaining);
+        
+        if (written < 0) {
+            if (errno == EINTR) {
+                continue; //error writing, retry
+            }
+            return false;
+        }
+        
+        ptr += written;
+        remaining -= written;
+    }
+    
+    return true;
 
 
 }
+
+bool Wal::fsync_dir(std::filesystem::path file_path) {
+    int dfd = open(file_path.c_str(), O_RDONLY | O_DIRECTORY);
+    if (dfd == -1) {
+        return false;
+    }
+
+    bool ok = (fsync(dfd) == 0);
+    close(dfd);
+    return ok;
+}
+
+
+
+

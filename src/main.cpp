@@ -1,4 +1,5 @@
 
+#include <format>
 #include <print>
 
 #include "dsa/RingBuffer.h"
@@ -15,7 +16,13 @@ int main() {
 
 
    Wal wal;
-   std::println("{}", sizeof(Tick));
+
+   Tick t {1, 2, 3, 4};
+
+   wal.append(t);
+   wal.append(t);
+   wal.append(t);
+   wal.append(t);
 
    
 
