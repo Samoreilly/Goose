@@ -5,8 +5,15 @@
 
 
 
+struct Tick {
+    uint64_t ts;        
+    uint64_t price;     
+    uint32_t symbol_id; 
+    uint32_t size;      
+};
+
 /*
-Ingestor must always be running
+Ingestor responsible for running threads for ingestion
 */
 
 template<typename T, size_t SIZE>
@@ -42,6 +49,11 @@ public:
 template<typename T, size_t SIZE>
 bool Ingestion<T, SIZE>::producer() {
 
+    while(true) { 
+        //listen to websocket
+        //ring_buffer.add();
+    }
+
 
     return true;
 
@@ -49,9 +61,12 @@ bool Ingestion<T, SIZE>::producer() {
 
 template<typename T, size_t SIZE>
 void Ingestion<T, SIZE>::consumer() {
+
+    while(true) {
+        ring_buffer.read();
+    }
+
 }
-
-
 
 
 template<typename T, size_t SIZE>
