@@ -1,11 +1,13 @@
 #pragma once
 
-#include "wal/wal.h"
-#include "dsa/RingBuffer.h"
 #include <cstring>
+#include <optional>
 #include <thread>
 #include <assert.h>
 
+#include "wal/wal.h"
+#include "dsa/RingBuffer.h"
+#include "helpers/convert.h"
 
 /*
 Ingestor responsible for running threads for ingestion
@@ -56,8 +58,19 @@ void Ingestion<SIZE>::consumer() {
 
     while(true) {
         Data&& data = ring_buffer.read();
-        const Tick tick{data.ts, data.price, assign_tickr(data.symbol), data.size};
-        wal.append(tick);  
+        uint32_t symbol_id {0};
+
+        //gets the corresponding unique id for the ticker
+        if(convert.find(data.symbol) != convert.end()) {
+            symbol_id = convert[data.symbol];
+        }else {
+            convert[data.symbol] = ticker_count++; 
+        }
+
+        const Tick tick{data.ts, data.price, symbol_id, data.size};
+        wal.append(tick);
+        
+
     }
 
 }
@@ -67,10 +80,9 @@ template<size_t SIZE>
 void Ingestion<SIZE>::start() {
     producers.join();
     consumers.join();
-
 }
 
-//Moves the ticker into an 8 byte integer
+//Moves the ticker into an packed 8 byte integer
 template<size_t SIZE>
 uint64_t Ingestion<SIZE>::assign_tickr(std::string_view ticker) {
 

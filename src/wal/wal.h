@@ -37,6 +37,7 @@ class Wal {
     
     bool write_bytes(int fd, uint8_t buffer[], size_t count);
     bool fsync_dir(std::filesystem::path file_path);
+
 public:
 
     Wal() {}

@@ -31,4 +31,5 @@ public:
 
     void append(const Tick& tick);
     void find(const uint64_t tick);
+
 };
