@@ -68,6 +68,7 @@ bool Wal::flush() {
   
    if(!write_bytes(fd, buffer, used)) {    
       std::println("Failed to write bytes to {}", file_path.c_str());
+      return false;
    }
 
    //Data potentially not safe so return false;

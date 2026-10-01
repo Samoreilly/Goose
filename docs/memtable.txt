@@ -1,0 +1,17 @@
+
+
+Note to self:
+Memtable is a generic term for a data structure that holds writes to files in memory,
+its used as an optimisation to avoid writing to disk everytime and instead it flushes once it reaches a specific size
+
+Options:
+
+Skip list or log structured merge tree
+
+
+Trade-offs: Skip list is more memory intensive, faster search due to the binarysearch-esque leveled structure
+
+Skip List fast reads because O(log n) search
+
+
+

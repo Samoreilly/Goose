@@ -1,44 +1,35 @@
 #pragma once
 
+#include "wal/wal.h"
 #include "dsa/RingBuffer.h"
+#include <cstring>
 #include <thread>
+#include <assert.h>
 
-
-
-struct Tick {
-    uint64_t ts;        
-    uint64_t price;     
-    uint32_t symbol_id; 
-    uint32_t size;      
-};
 
 /*
 Ingestor responsible for running threads for ingestion
 */
 
-template<typename T, size_t SIZE>
+template<size_t SIZE>
 class Ingestion {
 
-    std::array<std::thread, 1> producers {};
-    std::array<std::thread, 3> consumers {};
+    Wal wal;
+    std::thread producers;
+    std::thread consumers;
 
-
-    RingBuffer<T, SIZE> ring_buffer{};
-
-    bool producer();
+    RingBuffer<Data, SIZE> ring_buffer{};
+    void producer();
     void consumer();
     
+
+    uint64_t assign_tickr(std::string_view ticker);
+
+
 public:
 
-    Ingestion() {
-        
-        for(auto& p : producers) {
-            p = std::thread(&Ingestion<T, SIZE>::producer, this);
-        }
-
-        for(auto& c : consumers) {
-            c = std::thread(&Ingestion<T, SIZE>::consumer, this);
-        }
+    Ingestion(Wal& w) : wal(w) {
+ 
 
     }
 
@@ -46,36 +37,51 @@ public:
 };
 
 
-template<typename T, size_t SIZE>
-bool Ingestion<T, SIZE>::producer() {
-
-    while(true) { 
-        //listen to websocket
-        //ring_buffer.add();
-    }
-
-
-    return true;
-
-}
-
-template<typename T, size_t SIZE>
-void Ingestion<T, SIZE>::consumer() {
+template<size_t SIZE>
+void Ingestion<SIZE>::producer() {
 
     while(true) {
-        ring_buffer.read();
+        //will change to websocket connection
+        Data data = {}; 
+
+        while(!ring_buffer.add(std::move(data))) {
+            std::this_thread::yield();
+        }
+
+    }
+}
+
+template<size_t SIZE>
+void Ingestion<SIZE>::consumer() {
+
+    while(true) {
+        Data&& data = ring_buffer.read();
+        const Tick tick{data.ts, data.price, assign_tickr(data.symbol), data.size};
+        wal.append(tick);  
     }
 
 }
 
 
-template<typename T, size_t SIZE>
-void Ingestion<T, SIZE>::start() {
-
-    for(auto& p : producers)
-        p.join();
-
-    for(auto& c : consumers)
-        c.join();
+template<size_t SIZE>
+void Ingestion<SIZE>::start() {
+    producers.join();
+    consumers.join();
 
 }
+
+//Moves the ticker into an 8 byte integer
+template<size_t SIZE>
+uint64_t Ingestion<SIZE>::assign_tickr(std::string_view ticker) {
+
+    //checks if string will fit into our 8 byte integer
+    assert(ticker.size() <= 8 && "Ticker exceeded 8 byte size");
+
+    uint64_t res {0};
+    std::memcpy(&res, ticker.data(), 8);
+    
+    return res;
+}
+
+
+

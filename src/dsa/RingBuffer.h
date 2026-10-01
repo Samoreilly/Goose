@@ -15,7 +15,7 @@ class RingBuffer {
 
 public:
 
-    bool add(const T& data);
+    bool add(T&& data);
     T read();
 };
 
@@ -25,7 +25,7 @@ The read function relies on CAS to handle multiple threads changing values
 */
 
 template<typename T, size_t SIZE>
-bool RingBuffer<T, SIZE>::add(const T& data) {
+bool RingBuffer<T, SIZE>::add(T&& data) {
     
     size_t curr_head = head.load(std::memory_order_relaxed);
     size_t curr_tail = tail.load(std::memory_order_acquire);
@@ -33,7 +33,7 @@ bool RingBuffer<T, SIZE>::add(const T& data) {
     //check if full. This is unlikely as there is a high consumer to producer ratio
     if(curr_head - curr_tail >= SIZE) [[unlikely]] return false;
 
-    buffer[curr_head & (SIZE - 1)] = data;
+    buffer[curr_head & (SIZE - 1)] = std::move(data);
 
     //essentially publishes all writes including previous writes like for e.g. line 36
     head.store(curr_head + 1, std::memory_order_release);
@@ -44,23 +44,14 @@ bool RingBuffer<T, SIZE>::add(const T& data) {
 template<typename T, size_t SIZE>
 T RingBuffer<T, SIZE>::read(){
     
-    while(true) {
-        
-        size_t curr_tail = tail.load(std::memory_order_relaxed);
-        //acquire so it reads fresh value
-        size_t curr_head = head.load(std::memory_order_acquire);
-        
-        if(curr_tail >= curr_head) { std::this_thread::yield(); continue; }
+    size_t curr_tail = tail.load(std::memory_order_relaxed);
+    //acquire so it reads fresh value 
+    while(curr_tail >= head.load(std::memory_order_acquire)) { std::this_thread::yield(); }
 
-        //checks if tail is equal to curr_tail
-        //has if it has not been changed from intialisation until now
-        if(tail.compare_exchange_weak(curr_tail, curr_tail + 1, std::memory_order::release, std::memory_order_relaxed)) {
-            return buffer[curr_tail & (SIZE - 1)]; 
-        }
+    T out = std::move(buffer[curr_tail & (SIZE - 1)]);
+    tail.store(curr_tail + 1, std::memory_order_release);
 
-
-    }
-
+    return out;
 }
 
 

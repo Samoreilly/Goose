@@ -1,10 +1,10 @@
+#pragma once
 
 #include <cstddef>
 #include <cstdint>
-#include <limits>
 #include <string.h>
 #include <zlib.h>
-#include "../ingestion.h"
+#include "../DataTypes.h"
 #include <filesystem>
 
 
@@ -22,7 +22,6 @@ WAL logs will be periodically flushed to SS Table and removed from logs
 */
 
 class Wal {
-
 
     size_t file_counter {0};
     std::string folder_name = "gdb/wal/";
