@@ -14,4 +14,5 @@ Trade-offs: Skip list is more memory intensive, faster search due to the binarys
 Skip List fast reads because O(log n) search
 
 
-
+Rethought:
+- Since I'm using sequentially ids, I will go with a std vector. This will let me access by index O(1)

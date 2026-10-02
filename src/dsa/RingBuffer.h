@@ -3,6 +3,11 @@
 #include <atomic>
 #include <thread>
 #include <xmmintrin.h>
+#include <print>
+
+#include "../DataTypes.h"
+
+
 #define ALLOWED_SPINS 60
 
 /*
@@ -58,6 +63,7 @@ T RingBuffer<T, SIZE>::read(){
             //slows down instructions, stops the while loop from overloading the cpu
             _mm_pause();
         }else {
+            std::println("Waiting");
             head.wait(curr_tail, std::memory_order_acquire);
             spins = 0;
         }
@@ -65,7 +71,8 @@ T RingBuffer<T, SIZE>::read(){
 
     T out = std::move(buffer[curr_tail & (SIZE - 1)]);
     tail.store(curr_tail + 1, std::memory_order_release);
-
+    
+    std::println("{}", static_cast<Data>(out).ts);
     return out;
 }
 

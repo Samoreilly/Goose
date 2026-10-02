@@ -5,9 +5,10 @@
 #include <thread>
 #include <assert.h>
 
+#include "dsa/MemTable.h"
 #include "wal/wal.h"
 #include "dsa/RingBuffer.h"
-#include "helpers/convert.h"
+#include "helpers/Convert.h"
 
 /*
 Ingestor responsible for running threads for ingestion
@@ -17,6 +18,7 @@ template<size_t SIZE>
 class Ingestion {
 
     Wal wal;
+    MemTable mem_table;
     std::thread producers;
     std::thread consumers;
 
@@ -30,10 +32,7 @@ class Ingestion {
 
 public:
 
-    Ingestion(Wal& w) : wal(w) {
- 
-
-    }
+    Ingestion(Wal& w, MemTable& mem) : wal(w), mem_table(mem) {}
 
     void start();
 };
@@ -43,8 +42,9 @@ template<size_t SIZE>
 void Ingestion<SIZE>::producer() {
 
     while(true) {
+
         //will change to websocket connection
-        Data data = {}; 
+        Data data {}; 
 
         while(!ring_buffer.add(std::move(data))) {
             std::this_thread::yield();
@@ -57,6 +57,7 @@ template<size_t SIZE>
 void Ingestion<SIZE>::consumer() {
 
     while(true) {
+
         Data&& data = ring_buffer.read();
         uint32_t symbol_id {0};
 
@@ -67,9 +68,9 @@ void Ingestion<SIZE>::consumer() {
             convert[data.symbol] = ticker_count++; 
         }
 
-        const Tick tick{data.ts, data.price, symbol_id, data.size};
+        Tick tick{data.ts, data.price, data.vol, symbol_id};
         wal.append(tick);
-        
+        mem_table.append(tick);        
 
     }
 
@@ -78,6 +79,8 @@ void Ingestion<SIZE>::consumer() {
 
 template<size_t SIZE>
 void Ingestion<SIZE>::start() {
+    producers = std::thread(&Ingestion::producer, this);
+    consumers = std::thread(&Ingestion::consumer, this);
     producers.join();
     consumers.join();
 }

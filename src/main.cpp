@@ -4,25 +4,20 @@
 
 #include "ingestion.h"
 #include "wal/wal.h"
-
+#include "dsa/MemTable.h"
 
 int main() {
 
    std::println("GooseTSDB started");
 
+   MemTable mem_table;
    Wal wal;
-
-
-   Ingestion<65536> ingestor{wal};
-
-   Tick t {1, 2, 3, 4};
-
-   wal.append(t);
-   wal.append(t);
-   wal.append(t);
-   wal.append(t);
-
    
+
+   Ingestion<65536> ingestor{wal, mem_table};
+   //ingestor.start();
+    
+
 
 
    return 0;

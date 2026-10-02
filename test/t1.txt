@@ -1,0 +1,51 @@
+
+This tests out the atomic wait function
+- It used a loop up to 10 with an if statement, if i == 5 sleep(2);
+
+
+This is the correct output
+
+
+GooseTSDB started
+Waiting
+0
+Added to buffer
+1
+Added to buffer
+2
+Added to buffer
+3
+Added to buffer
+4
+Added to buffer
+Waiting
+5
+Added to buffer
+6
+Added to buffer
+7
+Added to buffer
+8
+Added to buffer
+9
+Added to buffer
+0
+Added to buffer
+1
+Added to buffer
+2
+Added to buffer
+3
+Added to buffer
+4
+Added to buffer
+Waiting
+5
+Added to buffer
+6
+Added to buffer
+7
+Added to buffer
+8
+Added to buffer
+9
