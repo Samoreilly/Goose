@@ -7,6 +7,7 @@ add_executable(
     goose
     src/main.cpp
     src/wal/wal.cpp
+    src/dsa/MemTable.cpp
 )
 
 target_compile_features(goose PRIVATE cxx_std_23)

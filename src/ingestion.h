@@ -11,14 +11,14 @@
 #include "helpers/Convert.h"
 
 /*
-Ingestor responsible for running threads for ingestion
+Ingestor responsible for orchestration && ingestion threads
 */
 
 template<size_t SIZE>
 class Ingestion {
 
-    Wal wal;
-    MemTable mem_table;
+    Wal& wal;
+    MemTable& mem_table;
     std::thread producers;
     std::thread consumers;
 
@@ -41,39 +41,38 @@ public:
 template<size_t SIZE>
 void Ingestion<SIZE>::producer() {
 
-    while(true) {
-
+    for(int i {0};i < 20;i++) {
         //will change to websocket connection
-        Data data {}; 
+        Data data (i, i + i, i + 8, "AAPL"); 
 
         while(!ring_buffer.add(std::move(data))) {
             std::this_thread::yield();
         }
-
     }
+
 }
 
 template<size_t SIZE>
 void Ingestion<SIZE>::consumer() {
 
-    while(true) {
-
+    for(int i {0};i < 20;i++) {
         Data&& data = ring_buffer.read();
-        uint32_t symbol_id {0};
 
-        //gets the corresponding unique id for the ticker
-        if(convert.find(data.symbol) != convert.end()) {
-            symbol_id = convert[data.symbol];
-        }else {
-            convert[data.symbol] = ticker_count++; 
+        //it will return inserted == false if already key exists
+        //This only does 1 lookup, last implementation did 3
+        auto [it, inserted] = ticker_to_id.try_emplace(data.symbol, ticker_count);
+        if (inserted) {
+            id_to_ticker.insert({ticker_count, data.symbol});
+            ticker_count++;
         }
 
+        uint32_t symbol_id = it->second;
+
         Tick tick{data.ts, data.price, data.vol, symbol_id};
+        //append to WAL first for durability incase crash happens
         wal.append(tick);
-        mem_table.append(tick);        
-
+        mem_table.append(tick);
     }
-
 }
 
 

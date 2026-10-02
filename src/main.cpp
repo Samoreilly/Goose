@@ -15,10 +15,9 @@ int main() {
    
 
    Ingestion<65536> ingestor{wal, mem_table};
-   //ingestor.start();
-    
+   ingestor.start();
 
-
+   mem_table.print();
 
    return 0;
 }
