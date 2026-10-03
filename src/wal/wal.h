@@ -9,7 +9,7 @@
 
 
 //NOTE: 8mb arbitrary value, will tune it later
-#define MAX_FILE_SIZE_B 8000000 
+#define MAX_FILE_SIZE_B 4000000 
 #define BUFFER_SIZE_B 1000000 //1mb for staging buffer
 
 /*

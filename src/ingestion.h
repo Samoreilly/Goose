@@ -44,9 +44,15 @@ void Ingestion<SIZE>::producer() {
     for(int i {0};i < 20;i++) {
         //will change to websocket connection
         Data data (i, i + i, i + 8, "AAPL"); 
-
+        
+        size_t spins {0};
         while(!ring_buffer.add(std::move(data))) {
-            std::this_thread::yield();
+            if(spins++ < ALLOWED_SPINS) {
+                _mm_pause();
+            }else {
+                std::this_thread::yield();
+                spins = 0;
+            }
         }
     }
 
