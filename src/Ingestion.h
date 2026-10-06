@@ -6,7 +6,7 @@
 #include <assert.h>
 
 #include "dsa/MemTable.h"
-#include "wal/wal.h"
+#include "wal/Wal.h"
 #include "dsa/RingBuffer.h"
 #include "helpers/Convert.h"
 

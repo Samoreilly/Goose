@@ -4,6 +4,7 @@
 #include <inttypes.h>
 
 #include "../DataTypes.h"
+#include "MovingAverage.h"
 
 struct Chunk {
     static constexpr int N = 4096;
@@ -15,6 +16,10 @@ struct Chunk {
 
 struct TickerBuffer {
     std::vector<Chunk> chunks;
+    
+    MovingAverage<30> monthly;
+    MovingAverage<365> yearly;
+
     uint64_t last_ts {0};
     uint64_t last_price {0};
     uint32_t last_vol {0};

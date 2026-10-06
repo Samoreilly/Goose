@@ -36,7 +36,7 @@ void MemTable::append(Tick& t) {
 }
 
 TickerBuffer& MemTable::get(uint32_t symbol_id) {
-   if(symbol_id >= buf.size()) buf.resize(buf.size() + 500);
+   if(symbol_id >= buf.size()) buf.resize(buf.size() + 1000);
    return buf[symbol_id]; 
 }
 

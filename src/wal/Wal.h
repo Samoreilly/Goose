@@ -1,12 +1,17 @@
 #pragma once
 
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <locale>
+#include <stop_token>
 #include <string.h>
 #include <zlib.h>
-#include "../DataTypes.h"
 #include <filesystem>
+#include <thread>
+#include <mutex>
 
+#include "../DataTypes.h"
 
 //NOTE: 8mb arbitrary value, will tune it later
 #define MAX_FILE_SIZE_B 4000000 
@@ -23,9 +28,8 @@ WAL logs will be periodically flushed to SS Table and removed from logs
 
 class Wal {
 
-    size_t file_counter {0};
-    std::string folder_name = "gdb/wal/";
-    
+
+   
     int fd {-1};
     size_t current_size {0};
 
@@ -42,8 +46,13 @@ public:
 
     Wal() {}
 
+    size_t file_counter {0};
+    std::string folder_name = "gdb/wal/";
+ 
     void append(const Tick& data);
     bool flush();
+
+    void background_flush(std::stop_token stop_token);
 
 };
 

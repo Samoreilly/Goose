@@ -6,7 +6,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 add_executable(
     goose
     src/main.cpp
-    src/wal/wal.cpp
+    src/wal/Wal.cpp
     src/dsa/MemTable.cpp
 )
 

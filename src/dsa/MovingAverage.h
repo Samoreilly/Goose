@@ -28,7 +28,6 @@ public:
         moving_average[i] = price;
         running_sum += price;
     
-        std::println("{}", running_sum);
         head++;
     }
 
