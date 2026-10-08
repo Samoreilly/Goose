@@ -1,0 +1,13 @@
+
+
+SSTable(Sorted String Table) is the common name, my implementation will
+use Integers as key though
+
+
+https://pratyusv.github.io/blog/2022/sstable/
+
+
+- A small in memory index that stores file name/number, min and max key to check bounds, min and max ts to check bounds also
+
+
+

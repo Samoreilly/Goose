@@ -28,8 +28,6 @@ WAL logs will be periodically flushed to SS Table and removed from logs
 
 class Wal {
 
-
-   
     int fd {-1};
     size_t current_size {0};
 
@@ -51,8 +49,6 @@ public:
  
     void append(const Tick& data);
     bool flush();
-
-    void background_flush(std::stop_token stop_token);
 
 };
 

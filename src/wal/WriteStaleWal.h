@@ -4,6 +4,8 @@
 #include <iostream>
 #include <string>
 #include <cstdio>
+#include <charconv>
+#include <string_view>
 
 #include "Wal.h"
 
@@ -40,12 +42,14 @@ public:
             //gives the strings name excluding the extension
             std::string_view file_name = 
                 std::string_view(file_name_wext).substr(0, file_name_wext.length() - 4);
-        //   
-        //     std::println("{}", file_name);
-        // 
-            int file_n = std::stoi(std::string(file_name));
-            std::println("{}", file_n);
 
+            size_t file_number {0}; 
+            std::ignore = std::from_chars(file_name.data(), file_name.data() + file_name.size(), file_number);
+
+            //If true, it is not in use
+            if(file_number < wal.file_counter) {
+                //move to SSTABLE
+            }
 
         }
 

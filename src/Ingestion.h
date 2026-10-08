@@ -25,10 +25,8 @@ class Ingestion {
     RingBuffer<Data, SIZE> ring_buffer{};
     void producer();
     void consumer();
-    
 
     uint64_t assign_tickr(std::string_view ticker);
-
 
 public:
 

@@ -65,3 +65,47 @@ void MemTable::print() {
       }
    }
 }
+
+
+void MemTable::print_chunksort(const std::vector<ChunkSort>& samples) {
+    std::println("\n\nIndex\tTimestamp\tPrice\t\tVolume");
+
+    for (size_t i = 0; i < samples.size(); ++i) {
+        const auto& s = samples[i];
+        std::println("{}\t{}\t{}\t\t{}", i, s.ts, s.price, s.vol);
+    }
+
+}
+
+
+//This should be really fast because timestamps are mostly in order
+//This is only incase the websocket received them out of order
+//Hard to know if this is actually needed until proper end to end testing
+void MemTable::sort() {
+
+   for(const auto& ticker : buf) {
+
+      for(const auto& chunk : ticker.chunks) {
+ 
+         for(size_t i {0}; i < chunk.idx;i++) {
+            sorted.push_back({chunk.ts[i], chunk.price[i], chunk.vol[i]});
+         }
+      }
+   }
+
+   //Oldest first - ascending
+   std::sort(sorted.begin(), sorted.end(), [](ChunkSort& a, ChunkSort& b) { return a.ts < b.ts; });
+
+   print_chunksort(sorted);
+
+   std::println("to verify that timestamps are sorted");
+   for(size_t i {1};i < sorted.size();i++) {
+      if(sorted[i].ts < sorted[i - 1].ts) {
+         std::println("Not sorted");
+         return;
+      }
+   }
+
+   std::println("Sorted");
+
+}

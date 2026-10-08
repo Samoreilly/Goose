@@ -6,6 +6,12 @@
 #include "../DataTypes.h"
 #include "MovingAverage.h"
 
+struct ChunkSort {
+    uint64_t ts;
+    uint64_t price;
+    uint64_t vol;
+};
+
 struct Chunk {
     static constexpr int N = 4096;
     uint64_t ts[N] = {0};        
@@ -35,12 +41,18 @@ class MemTable {
 
     std::vector<TickerBuffer> buf {15000};
 
+    std::vector<ChunkSort> sorted {15000};
+    
+    void print_chunksort(const std::vector<ChunkSort>& chunk_sort);
+
 public:
 
     MemTable() {}
 
     void append(Tick& t);
-    TickerBuffer& get(uint32_t symbol_id);
-    
+    inline TickerBuffer& get(uint32_t symbol_id);
+     void sort();
+ 
+    //occurs when flush is triggered
     void print();
 };
