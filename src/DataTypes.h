@@ -11,8 +11,8 @@ struct Data {
 };
 
 struct Tick {
-    uint64_t ts;        
-    uint64_t price;    
-    uint32_t vol;   
+    uint64_t ts;
+    uint64_t price;
+    uint32_t vol;
     uint32_t symbol_id;
 };

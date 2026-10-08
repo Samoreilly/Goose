@@ -11,8 +11,9 @@
 
 
 /*
-This classes purposes is to move old .wal files to immutable storage in the background, simply a file with the name that is less than file_counter
-This means its not being written to
+This classes purposes is to move old .wal files to immutable storage in the background,
+it's simply a file with the name that is less than file_counter
+This means its old and not being used
 */
 
 class WriteStateWal {

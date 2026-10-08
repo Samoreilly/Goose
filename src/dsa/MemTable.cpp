@@ -31,12 +31,14 @@ void MemTable::append(Tick& t) {
    uint8_t* src = reinterpret_cast<uint8_t*>(&t);
 
    memcpy(dest, src, sizeof(slot.last_ts) + sizeof(slot.last_price) + sizeof(slot.last_vol)); 
-   
+
+   total_ticks++;
+
    std::println("End of append memtable");
 }
 
 TickerBuffer& MemTable::get(uint32_t symbol_id) {
-   if(symbol_id >= buf.size()) buf.resize(buf.size() + 1000);
+   if(symbol_id >= buf.size()) buf.resize(symbol_id + 1000);
    return buf[symbol_id]; 
 }
 
@@ -84,9 +86,10 @@ void MemTable::print_chunksort(const std::vector<ChunkSort>& samples) {
 void MemTable::sort() {
 
    for(const auto& ticker : buf) {
-
+   
       for(const auto& chunk : ticker.chunks) {
- 
+         total_size += chunk.idx;//gives us total size for all chunks
+
          for(size_t i {0}; i < chunk.idx;i++) {
             sorted.push_back({chunk.ts[i], chunk.price[i], chunk.vol[i]});
          }

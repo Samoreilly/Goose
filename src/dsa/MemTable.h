@@ -39,10 +39,11 @@ Data is stored columnarly for locality, which should make specific queries a bit
 */
 class MemTable {
 
+    //A heuristic to know when to flush
+    size_t total_ticks {0};
     std::vector<TickerBuffer> buf {15000};
-
+    //buf -> sorted on flush, then both cleared
     std::vector<ChunkSort> sorted {15000};
-    
     void print_chunksort(const std::vector<ChunkSort>& chunk_sort);
 
 public:
@@ -51,8 +52,11 @@ public:
 
     void append(Tick& t);
     inline TickerBuffer& get(uint32_t symbol_id);
-     void sort();
- 
+     
+    void sort();
+    //calculated during sort()
+    size_t total_size {0};
+
     //occurs when flush is triggered
     void print();
 };
