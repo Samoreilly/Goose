@@ -30,8 +30,8 @@ public:
 
     
     //must provide exact types
-    explicit Sit(const std::vector<ChunkSort>&& sorted_chunks, MemTable& m) {
-        m.sort();
+    explicit Sit(std::vector<ChunkSort>&& sorted_chunks) {
+        sort_chunks(sorted_chunks);
 
         table.ts.resize(sorted_chunks.size(), 0);
         table.price.resize(sorted_chunks.size(), 0);
@@ -40,7 +40,10 @@ public:
         transfer_to_ss(sorted_chunks);
 
         std::println("Transferred to SSTable");
-        
+
+        //eventually clear sorted
     }
     
+    void sort_chunks(std::vector<ChunkSort>& sorted_chunks);
+
 };

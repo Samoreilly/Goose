@@ -51,8 +51,7 @@ void cleanup_memtable(MemTable& table);
 class MemTable {
   
 
-    std::vector<TickerBuffer> buf {15000};
-    //buf -> sorted on flush, then both cleared
+   //buf -> sorted on flush, then both cleared
     void print_chunksort(const std::vector<ChunkSort>& chunk_sort);
     std::thread cleanup_thread;
 
@@ -72,9 +71,9 @@ public:
         }
     }
 
+    std::vector<TickerBuffer> buf {15000};
     std::vector<ChunkSort> sorted;
     
-    MemTable* immutable_memtable;
     std::condition_variable cond_var;
     
     std::mutex mu;
@@ -96,7 +95,6 @@ public:
     void append(Tick& t);
     inline TickerBuffer& get(uint32_t symbol_id);
      
-    void sort();
     //calculated during sort()
     size_t total_size {0};
 

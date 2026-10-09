@@ -6,6 +6,22 @@
 #include "BackgroundWork.h"
 #include "SSTable/Sit.h"
 
+
+void copy_chunks(MemTable& mem) {
+   mem.sorted.clear();
+   mem.sorted.reserve(mem.total_ticks);
+
+  for(const auto& ticker : mem.buf) {
+   
+      for(const auto& chunk : ticker.chunks) {
+  
+         for(size_t i {0}; i < chunk.idx;i++) {
+            mem.sorted.push_back({chunk.ts[i], chunk.price[i], chunk.vol[i]});
+         }
+      }
+   }
+}
+
 void cleanup_memtable(MemTable& mem) {
 
    while(true) {
@@ -25,12 +41,19 @@ void cleanup_memtable(MemTable& mem) {
       if(condition_met) {
          
          std::println("Before cleared {}", mem.total_ticks);
-         Sit s(std::move(mem.sorted), mem);  
+
+         //swap buffer into sorted
+         copy_chunks(mem);
+
          mem.reset_memtable();
-         //resources are acquired so we unlock asap, so append() can start again
+         //resources are acquired so we unlock asap, so append() can start again  
          lk.unlock();
-         
+ 
+         Sit s(std::move(mem.sorted));  
+            
+       
          std::println("Cleared {}", mem.total_ticks);
+      
       }
 
 
