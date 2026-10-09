@@ -62,10 +62,14 @@ public:
     }
 
     ~MemTable() {
+       { 
+            std::lock_guard<std::mutex> lk(mu); 
+            //signals cleanup thread to stop
+            stop = true;
+        }
+        
         cond_var.notify_all();
         
-        //signals cleanup thread to stop
-        stop = true;
         if(cleanup_thread.joinable()) {
             cleanup_thread.join();
         }
@@ -77,7 +81,7 @@ public:
     std::condition_variable cond_var;
     
     std::mutex mu;
-    static constexpr int MAX_TICKS {100};//NOTE: decide on a optimal value
+    static constexpr int MAX_TICKS {10000};//NOTE: decide on a optimal value
     //Heuristics to know when to flush
     size_t total_ticks {0};
     std::chrono::time_point<std::chrono::steady_clock> last_append;

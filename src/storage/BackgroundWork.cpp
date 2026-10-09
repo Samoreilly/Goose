@@ -25,23 +25,33 @@ void copy_chunks(MemTable& mem) {
 void cleanup_memtable(MemTable& mem) {
 
    while(true) {
+
+      //locks
       std::unique_lock<std::mutex> lk(mem.mu);
      
       //signalled from MemTable destructor
-      if(mem.stop) [[unlikely]] return;
+      if(mem.stop) [[unlikely]]{
+         //flush remaining from buffer
+
+         if(mem.total_ticks > 0) {
+            copy_chunks(mem);
+            lk.unlock();
+            Sit s(std::move(mem.sorted));
+         }
+
+         return;
+      }
 
       const auto timepoint = mem.last_append + std::chrono::seconds(5);
    
-      //sleeps for 5 seconds, then checks condition, if true it locks
+      //unlocks, sleeps for 5 seconds
+      //or until append() calls notify_one(), then checks condition, if true it locks
       bool condition_met = mem.cond_var.wait_until(lk, timepoint, [&mem] {
-         std::println("Checking condition");
-         return mem.total_ticks > 0 && (mem.total_ticks >= MemTable::MAX_TICKS || (std::chrono::steady_clock::now() - mem.last_append) >= std::chrono::seconds(5));
+        return mem.total_ticks > 0 && (mem.total_ticks >= MemTable::MAX_TICKS || (std::chrono::steady_clock::now() - mem.last_append) >= std::chrono::seconds(5));
       });
-
+      
       if(condition_met) {
          
-         std::println("Before cleared {}", mem.total_ticks);
-
          //swap buffer into sorted
          copy_chunks(mem);
 
@@ -50,10 +60,8 @@ void cleanup_memtable(MemTable& mem) {
          lk.unlock();
  
          Sit s(std::move(mem.sorted));  
-            
-       
-         std::println("Cleared {}", mem.total_ticks);
-      
+         
+     
       }
 
 

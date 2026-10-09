@@ -13,7 +13,7 @@
 void MemTable::append(Tick& t) {
 
    //Lock so background cleanup thread doesn't interfere
-   std::lock_guard<std::mutex> lk(mu);
+   std::unique_lock<std::mutex> lk(mu);
 
    TickerBuffer& slot = get(t.symbol_id);
    
@@ -41,11 +41,10 @@ void MemTable::append(Tick& t) {
 
 
    if(total_ticks >= MemTable::MAX_TICKS) [[unlikely]] {
+      lk.unlock();
       cond_var.notify_one();
-      std::println("Notified cleanup_memtable thread");
    }
 
-   std::println("End of append memtable");
 }
 
 TickerBuffer& MemTable::get(uint32_t symbol_id) {

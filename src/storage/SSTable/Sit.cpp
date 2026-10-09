@@ -20,17 +20,7 @@ void Sit::transfer_to_ss(const std::vector<ChunkSort>& sorted_chunks) {
 void Sit::sort_chunks(std::vector<ChunkSort>& sorted_chunks) {
 
    //Oldest first - ascending
-    std::sort(sorted_chunks.begin(), sorted_chunks.end(), [](ChunkSort& a, ChunkSort& b) { return a.ts < b.ts; });
+   std::sort(sorted_chunks.begin(), sorted_chunks.end(), [](ChunkSort& a, ChunkSort& b) { return a.ts < b.ts; });
    
-    std::println("to verify that timestamps are sorted");
-   
-    for(size_t i {1};i < sorted_chunks.size();i++) {
-      if(sorted_chunks[i].ts < sorted_chunks[i - 1].ts) {
-         std::println("Not sorted");
-         return;
-      }
-   }
-
-   std::println("Sorted");
 
 }
