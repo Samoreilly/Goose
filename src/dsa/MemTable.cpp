@@ -4,12 +4,16 @@
 #include <stddef.h>
 #include <ranges>
 #include <print>
+#include <mutex>
 
 #include "MemTable.h"
 
 
 
 void MemTable::append(Tick& t) {
+
+   //Lock so background cleanup thread doesn't interfere
+   std::lock_guard<std::mutex> lk(mu);
 
    TickerBuffer& slot = get(t.symbol_id);
    
@@ -33,19 +37,27 @@ void MemTable::append(Tick& t) {
    memcpy(dest, src, sizeof(slot.last_ts) + sizeof(slot.last_price) + sizeof(slot.last_vol)); 
 
    total_ticks++;
+   last_append = std::chrono::steady_clock::now();
+
+
+   if(total_ticks >= MemTable::MAX_TICKS) [[unlikely]] {
+      cond_var.notify_one();
+      std::println("Notified cleanup_memtable thread");
+   }
 
    std::println("End of append memtable");
 }
 
 TickerBuffer& MemTable::get(uint32_t symbol_id) {
-   if(symbol_id >= buf.size()) buf.resize(symbol_id + 1000);
+   if(symbol_id >= buf.size()) [[unlikely]] buf.resize(symbol_id + 1000);
+   
    return buf[symbol_id]; 
 }
 
 void MemTable::print() {
    std::println("\nMemTable\n");
    
-   if(buf.empty()) {
+   if(buf.empty()) [[unlikely]] {
       std::println("Empty TickerBuffer");
       return;
    }
@@ -84,6 +96,10 @@ void MemTable::print_chunksort(const std::vector<ChunkSort>& samples) {
 //This is only incase the websocket received them out of order
 //Hard to know if this is actually needed until proper end to end testing
 void MemTable::sort() {
+
+   //clear previous sorted
+   sorted.clear();
+   sorted.reserve(total_ticks);
 
    for(const auto& ticker : buf) {
    

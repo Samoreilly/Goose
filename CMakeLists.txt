@@ -9,6 +9,7 @@ add_executable(
     src/wal/Wal.cpp
     src/dsa/MemTable.cpp
     src/storage/SSTable/Sit.cpp
+    src/storage/BackgroundWork.cpp
 )
 
 target_compile_features(goose PRIVATE cxx_std_23)

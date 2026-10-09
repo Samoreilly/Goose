@@ -1,9 +1,12 @@
+#pragma once
+
+#include "../dsa/MemTable.h"
 
 /*
 This will handle memtable clean up for now
 */
-class BackgroundWork {
+class MemTable;
 
-public:
+void cleanup_memtable(MemTable& mem);
 
-};
+

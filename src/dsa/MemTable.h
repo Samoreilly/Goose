@@ -1,10 +1,17 @@
 #pragma once
 
+#include <chrono>
 #include <vector>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
 #include <inttypes.h>
+#include <functional>
 
+#include "../storage/BackgroundWork.h"
 #include "../DataTypes.h"
 #include "MovingAverage.h"
+
 
 struct ChunkSort {
     uint64_t ts;
@@ -37,18 +44,54 @@ This Memtable contains TickerBuffer where a slot contains Chunk
 Chunk holds recent stock market data, that can be queried fast
 Data is stored columnarly for locality, which should make specific queries a bit faster
 */
-class MemTable {
+class MemTable;
+void cleanup_memtable(MemTable& table);
+ 
 
-    //A heuristic to know when to flush
-    size_t total_ticks {0};
+class MemTable {
+  
+
     std::vector<TickerBuffer> buf {15000};
     //buf -> sorted on flush, then both cleared
-    std::vector<ChunkSort> sorted {15000};
     void print_chunksort(const std::vector<ChunkSort>& chunk_sort);
+    std::thread cleanup_thread;
 
 public:
 
-    MemTable() {}
+    MemTable() {
+        cleanup_thread = std::thread(cleanup_memtable, std::ref(*this));
+    }
+
+    ~MemTable() {
+        cond_var.notify_all();
+        
+        //signals cleanup thread to stop
+        stop = true;
+        if(cleanup_thread.joinable()) {
+            cleanup_thread.join();
+        }
+    }
+
+    std::vector<ChunkSort> sorted;
+    
+    MemTable* immutable_memtable;
+    std::condition_variable cond_var;
+    
+    std::mutex mu;
+    static constexpr int MAX_TICKS {100};//NOTE: decide on a optimal value
+    //Heuristics to know when to flush
+    size_t total_ticks {0};
+    std::chrono::time_point<std::chrono::steady_clock> last_append;
+    bool stop {false};
+
+    void reset_memtable() {
+        buf.assign(15000, TickerBuffer{});
+        
+        total_ticks = 0;
+        total_size = 0;
+        last_append = std::chrono::steady_clock::now();
+    }
+
 
     void append(Tick& t);
     inline TickerBuffer& get(uint32_t symbol_id);
@@ -60,3 +103,6 @@ public:
     //occurs when flush is triggered
     void print();
 };
+
+
+
