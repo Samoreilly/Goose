@@ -10,7 +10,7 @@ struct SSTableFileMetadata {
     uint64_t file_number {0};
     size_t size;
 
-    //purpose is to check ranges quickly to avoid scanning blocks
+    //purpose is to check ranges quickly to avoid looping through sstable
     uint64_t max_key {0}, min_key {0};
     uint64_t max_ts {0}, min_ts {0};    
 };

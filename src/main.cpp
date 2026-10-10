@@ -25,7 +25,7 @@ int main() {
    
    uint32_t symbol_id {0};
    for(int i {0};i < 15000;i++) {
-      Tick tick{symbol_id, distrib64(gen), distrib32(gen), symbol_id++};
+      Tick tick{distrib32(gen), distrib64(gen), distrib32(gen), symbol_id++};
       mem_table.append(tick); 
    }
 

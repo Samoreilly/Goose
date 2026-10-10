@@ -4,6 +4,7 @@
 #include <inttypes.h>
 
 #include "../../dsa/MemTable.h"
+#include "../Layout/Block.h"
 
 /*
 Columnar
@@ -11,37 +12,25 @@ Sorted Integer Table as opposed to sorted integer table
 Keys will be the id that is converted from the ticker at ingestion stage
 */
 
-
-//Templated size to take in variable "used" in chunks
-
-struct SSTable {
-    std::vector<int64_t> ts = {0};
-    std::vector<uint64_t> price = {0};
-    std::vector<uint32_t> vol = {0};
-};
-
 class Sit {
 
-    SSTable table{};
+    std::vector<Block> blocks;
+
     //moves sorted chunk data to columnar arrays
-    void transfer_to_ss(const std::vector<ChunkSort>& m);
+    void create_blocks(const std::vector<ChunkSort>& m);
+    void print_blocks();
 
 public:
 
     
     //must provide exact types
-    explicit Sit(std::vector<ChunkSort>&& sorted_chunks) {
+    explicit Sit(std::vector<ChunkSort>&& sorted_chunks){
+        std::println("SSTable flush{}", sorted_chunks.size());
+        
         sort_chunks(sorted_chunks);
-
-        table.ts.resize(sorted_chunks.size(), 0);
-        table.price.resize(sorted_chunks.size(), 0);
-        table.vol.resize(sorted_chunks.size(), 0);
-
-        transfer_to_ss(sorted_chunks);
+        create_blocks(sorted_chunks);
 
         std::println("Transferred to SSTable");
-
-        //eventually clear sorted
     }
     
     void sort_chunks(std::vector<ChunkSort>& sorted_chunks);
