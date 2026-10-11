@@ -1,3 +1,4 @@
+#pragma once
 
 #include <inttypes.h>
 #include <cstddef>
@@ -6,13 +7,30 @@
 /*
 Prior to the memtable flush, it will be written to an immutable SSTABLE on disk and file metadata in a hierarchical vector
 */
+
+struct BlockMeta {
+    
+    uint64_t block_id;
+    //These are local min/maxes for this block
+    uint64_t bmax_price {0}, bmin_price {std::numeric_limits<uint64_t>::max()};
+    uint64_t bmax_ts {0}, bmin_ts {std::numeric_limits<uint64_t>::max()};    
+
+};
+
+
+/*
+Im using two scope min/maxes to optimise searches. The symbol scope contains min/max for all blocks for that symbol_id,
+whereas the local scope is the min/max for that specific block
+*/
 struct FileMetadata {
     uint64_t file_number {0};
-    size_t size;
+    
+    std::vector<BlockMeta> block_data;
 
-    //purpose is to check ranges quickly to avoid scanning blocks
-    uint64_t max_key {0}, min_key {0};
-    uint64_t max_ts {0}, min_ts {0};    
-};
+    //Symbol scope min/max
+    uint64_t max_price {0}, min_price {std::numeric_limits<uint64_t>::max()};
+    uint64_t max_ts {0}, min_ts {std::numeric_limits<uint64_t>::max()};    
+
+ };
 
 

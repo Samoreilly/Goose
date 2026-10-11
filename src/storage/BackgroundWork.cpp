@@ -8,6 +8,10 @@
 #include "SSTable/Sit.h"
 
 
+/*
+Moves buffer into mem.sorted, unsorted. Sort occurs later
+*/
+
 uint32_t copy_chunks(MemTable& mem, std::vector<uint32_t>& counts) {
    mem.sorted.clear();
    mem.sorted.reserve(mem.total_ticks);
@@ -45,9 +49,9 @@ void cleanup_memtable(MemTable& mem) {
             std::vector<uint32_t> counts;
             counts.assign(mem.buf.size(), 0);
 
-            std::ignore = copy_chunks(mem, counts);
+            uint32_t n_symbols = copy_chunks(mem, counts);
             lk.unlock();
-            Sit s(std::move(mem.sorted), std::move(counts), 0);
+            Sit s(std::move(mem.sorted), std::move(counts), n_symbols);
          }
 
          return;
@@ -62,6 +66,7 @@ void cleanup_memtable(MemTable& mem) {
       });
       
       if(condition_met) {
+         //counts amount of data per symbol. Later used to calc number of blocks needed.
          std::vector<uint32_t> counts;
          counts.assign(mem.buf.size(), 0);
          //swap buffer into sorted

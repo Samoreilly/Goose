@@ -1,6 +1,7 @@
+#pragma once
 
 #include "Block.h"
-#include "../FileMetadata.h"
+#include "../SSTable/FileMetadata.h"
 #include "../../helpers/Convert.h"
 
 /*
@@ -14,14 +15,16 @@ blocks
 
 class Storage {
 
-
 public:
 
-    Storage() {
+    //symbol_id -> All block data for that symbol
+    std::unordered_map<uint64_t, FileMetadata> file_metadata;
+
+    Storage(uint32_t n_symbols, uint32_t reserve_amount) : file_metadata(n_symbols) {
+        
+        blocks.reserve(reserve_amount);
         //the number of symbol_ids found since ingestion
-        metadata.resize(ticker_to_id.size());
     }
 
-    std::vector<FileMetadata> metadata;
-
+    std::vector<Block> blocks;
 };
