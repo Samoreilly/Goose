@@ -1,0 +1,14 @@
+
+
+Tradeoffs about sorting/block storage
+
+The design of blocks made be reconsider how data was sorted. I originally planned a Block(struct)
+to be sorted by timestamp with precedence then price;
+
+When actually thinking of data would be scanned, it would be inefficent. 
+Ticker data would be scattered across blocks making it quite slow regardless of having metadata
+that tells use where the symbol_id data is.
+
+
+I decided to sort the chunks by symbol_id then timestamp, then price with each symbol_id taking up its own block(s)
+This is great for locality as data can be sequentially read.

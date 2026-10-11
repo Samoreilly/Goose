@@ -17,6 +17,7 @@ struct ChunkSort {
     uint64_t ts;
     uint64_t price;
     uint64_t vol;
+    uint32_t symbol_id;
 };
 
 struct Chunk {
@@ -28,6 +29,8 @@ struct Chunk {
 };
 
 struct TickerBuffer {
+    uint32_t symbol_id;
+
     std::vector<Chunk> chunks;
     
     MovingAverage<30> monthly;
@@ -59,6 +62,7 @@ public:
 
     MemTable() {
         cleanup_thread = std::thread(cleanup_memtable, std::ref(*this));
+        init_buffer();
     }
 
     ~MemTable() {
@@ -76,6 +80,13 @@ public:
     }
 
     std::vector<TickerBuffer> buf {15000};
+
+    void init_buffer() {
+        for(size_t i {0};i < buf.size();i++) {
+            buf[i].symbol_id = i;
+        }
+    }
+
     std::vector<ChunkSort> sorted;
     
     std::condition_variable cond_var;
@@ -89,7 +100,8 @@ public:
 
     void reset_memtable() {
         buf.assign(15000, TickerBuffer{});
-        
+        init_buffer();
+
         total_ticks = 0;
         total_size = 0;
         last_append = std::chrono::steady_clock::now();

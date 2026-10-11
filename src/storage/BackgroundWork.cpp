@@ -2,24 +2,32 @@
 #include <thread>
 #include <mutex>
 #include <print>
+#include <unordered_set>
 
 #include "BackgroundWork.h"
 #include "SSTable/Sit.h"
 
 
-void copy_chunks(MemTable& mem) {
+uint32_t copy_chunks(MemTable& mem, std::vector<uint32_t>& counts) {
    mem.sorted.clear();
    mem.sorted.reserve(mem.total_ticks);
 
-  for(const auto& ticker : mem.buf) {
-   
+   std::unordered_set<std::uint32_t> n_symbols;
+
+   for(const auto& ticker : mem.buf) {
+      const auto s_id = ticker.symbol_id;
+
       for(const auto& chunk : ticker.chunks) {
-  
+         counts[s_id] += chunk.idx;//counts data per symbol_id. used to calc number of blocks later
+
          for(size_t i {0}; i < chunk.idx;i++) {
-            mem.sorted.push_back({chunk.ts[i], chunk.price[i], chunk.vol[i]});
+            n_symbols.insert(s_id);//counts tickers
+            mem.sorted.push_back({chunk.ts[i], chunk.price[i], chunk.vol[i], s_id});
          }
       }
    }
+
+   return n_symbols.size();
 }
 
 void cleanup_memtable(MemTable& mem) {
@@ -34,9 +42,12 @@ void cleanup_memtable(MemTable& mem) {
          //flush remaining from buffer
 
          if(mem.total_ticks > 0) {
-            copy_chunks(mem);
+            std::vector<uint32_t> counts;
+            counts.assign(mem.buf.size(), 0);
+
+            std::ignore = copy_chunks(mem, counts);
             lk.unlock();
-            Sit s(std::move(mem.sorted));
+            Sit s(std::move(mem.sorted), std::move(counts), 0);
          }
 
          return;
@@ -51,15 +62,16 @@ void cleanup_memtable(MemTable& mem) {
       });
       
       if(condition_met) {
-         
+         std::vector<uint32_t> counts;
+         counts.assign(mem.buf.size(), 0);
          //swap buffer into sorted
-         copy_chunks(mem);
+         uint32_t n_symbols = copy_chunks(mem, counts);
 
          mem.reset_memtable();
          //resources are acquired so we unlock asap, so append() can start again  
          lk.unlock();
  
-         Sit s(std::move(mem.sorted));  
+         Sit s(std::move(mem.sorted), std::move(counts), n_symbols);  
          
      
       }

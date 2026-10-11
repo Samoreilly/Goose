@@ -1,6 +1,7 @@
 
 #include "Block.h"
-
+#include "../FileMetadata.h"
+#include "../../helpers/Convert.h"
 
 /*
 There will be 1024 rows per block. 20480 bytes per block
@@ -16,5 +17,11 @@ class Storage {
 
 public:
 
+    Storage() {
+        //the number of symbol_ids found since ingestion
+        metadata.resize(ticker_to_id.size());
+    }
+
+    std::vector<FileMetadata> metadata;
 
 };

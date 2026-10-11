@@ -1,0 +1,90 @@
+diff --git a/src/dsa/MemTable.cpp b/src/dsa/MemTable.cpp
+index 0834546..d1026bc 100644
+--- a/src/dsa/MemTable.cpp
++++ b/src/dsa/MemTable.cpp
+@@ -40,7 +40,7 @@ void MemTable::append(Tick& t) {
+    last_append = std::chrono::steady_clock::now();
+ 
+ 
+-   if(total_ticks >= MemTable::MAX_TICKS) [[unlikely]] {
++   if(total_ticks >= MemTable::MAX_TICKS) [[unlikely]] { 
+       lk.unlock();
+       cond_var.notify_one();
+    }
+diff --git a/src/storage/BackgroundWork.cpp b/src/storage/BackgroundWork.cpp
+index fbf4a3b..e972879 100644
+--- a/src/storage/BackgroundWork.cpp
++++ b/src/storage/BackgroundWork.cpp
+@@ -51,7 +51,6 @@ void cleanup_memtable(MemTable& mem) {
+       });
+       
+       if(condition_met) {
+-         
+          //swap buffer into sorted
+          copy_chunks(mem);
+ 
+diff --git a/src/storage/SSTable/FileMetadata.h b/src/storage/SSTable/FileMetadata.h
+index 7a08401..a8347fc 100644
+--- a/src/storage/SSTable/FileMetadata.h
++++ b/src/storage/SSTable/FileMetadata.h
+@@ -6,7 +6,7 @@
+ /*
+ Prior to the memtable flush, it will be written to an immutable SSTABLE on disk and file metadata in a hierarchical vector
+ */
+-struct SSTableFileMetadata {
++struct FileMetadata {
+     uint64_t file_number {0};
+     size_t size;
+ 
+diff --git a/src/storage/SSTable/Sit.cpp b/src/storage/SSTable/Sit.cpp
+index 63f1b62..08652ef 100644
+--- a/src/storage/SSTable/Sit.cpp
++++ b/src/storage/SSTable/Sit.cpp
+@@ -19,6 +19,7 @@ void Sit::create_blocks(const std::vector<ChunkSort>& sorted_chunks) {
+     size_t block_idx {0};
+     for(size_t i {0};i < sorted_chunks.size();i++) {
+ 
++        //create new block
+         if(block_idx == BLOCK_SIZE) [[unlikely]] {
+             blocks.back().elements = BLOCK_SIZE;
+             
+@@ -61,7 +62,10 @@ void Sit::print_blocks() {
+ //Hard to know if this is actually needed until proper end to end testing
+ void Sit::sort_chunks(std::vector<ChunkSort>& sorted_chunks) {
+ 
+-   //Oldest first - ascending
+-   std::sort(sorted_chunks.begin(), sorted_chunks.end(), [](ChunkSort& a, ChunkSort& b) { return a.ts < b.ts; });
++   //Oldest first. If timestamps are equal, compare by price
++   std::sort(sorted_chunks.begin(), sorted_chunks.end(), [](const ChunkSort& a, const ChunkSort& b) { 
++        if(a.ts == b.ts) [[unlikely]] return a.price < b.price; //smaller price wins
++        return a.ts < b.ts; 
++    });
+    
+ }
+diff --git a/src/storage/SSTable/Sit.h b/src/storage/SSTable/Sit.h
+index ed618e9..6e45b78 100644
+--- a/src/storage/SSTable/Sit.h
++++ b/src/storage/SSTable/Sit.h
+@@ -22,16 +22,17 @@ class Sit {
+ 
+ public:
+ 
+-    
+-    //must provide exact types
+-    explicit Sit(std::vector<ChunkSort>&& sorted_chunks){
+-        std::println("SSTable flush{}", sorted_chunks.size());
+-        
++    //Only pass rvalues
++    Sit(std::vector<ChunkSort>&& sorted_chunks){
++       
+         sort_chunks(sorted_chunks);
+         create_blocks(sorted_chunks);
+ 
+         std::println("Transferred to SSTable");
+     }
++
++    Sit(std::vector<ChunkSort>& m) = delete;
++    Sit(const std::vector<ChunkSort>& m) = delete;
+     
+     void sort_chunks(std::vector<ChunkSort>& sorted_chunks);
+ 

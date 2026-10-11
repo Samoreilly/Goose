@@ -27,5 +27,9 @@ struct Block {
 
 
 
+//NOTE: one symbol per block, symbol can span multiple blocks if there is alot of data
+//Metadata is stored in index
+
+
 
 

@@ -6,7 +6,7 @@
 /*
 Prior to the memtable flush, it will be written to an immutable SSTABLE on disk and file metadata in a hierarchical vector
 */
-struct SSTableFileMetadata {
+struct FileMetadata {
     uint64_t file_number {0};
     size_t size;
 
@@ -16,10 +16,3 @@ struct SSTableFileMetadata {
 };
 
 
-class FileMetadata {
-
-public:
-
-    //Contains sstable metadata
-    std::vector<SSTableFileMetadata> sst_metadata{100};
-};

@@ -16,7 +16,7 @@ void MemTable::append(Tick& t) {
    std::unique_lock<std::mutex> lk(mu);
 
    TickerBuffer& slot = get(t.symbol_id);
-   
+  
    if(slot.chunks.empty() || slot.chunks.back().idx == (Chunk::N)) [[unlikely]] {
       slot.chunks.emplace_back();
    }
@@ -40,7 +40,7 @@ void MemTable::append(Tick& t) {
    last_append = std::chrono::steady_clock::now();
 
 
-   if(total_ticks >= MemTable::MAX_TICKS) [[unlikely]] {
+   if(total_ticks >= MemTable::MAX_TICKS) [[unlikely]] { 
       lk.unlock();
       cond_var.notify_one();
    }
@@ -48,8 +48,14 @@ void MemTable::append(Tick& t) {
 }
 
 TickerBuffer& MemTable::get(uint32_t symbol_id) {
-   if(symbol_id >= buf.size()) [[unlikely]] buf.resize(symbol_id + 1000);
-   
+   if(symbol_id >= buf.size()) [[unlikely]] {
+      const size_t size = buf.size();
+      buf.resize(symbol_id + 1000);
+      
+      for(size_t i {size};i < buf.size();i++) {
+         buf[i].symbol_id = i;
+      }
+   }
    return buf[symbol_id]; 
 }
 

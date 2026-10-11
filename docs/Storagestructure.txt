@@ -1,0 +1,17 @@
+
+Files will be comprised of blocks, metadata at the end
+
+Blocks are timestamp(higher precedence), price sorted
+
+- During create_blocks(), metadata regarding the blocks will be stored in an on disk index.
+- The index will be lookuped by symbol_id and will contain block_id, max/min price/timestamp to speed up searches.
+- Later I will integrate a bloom filter, which is a probabilistic datastructure that has no false negatives
+- Which essentially means, if it returns false it definitely doesnt contain the item although true means maybe contains.
+
+
+Index
+- There will be a vector of block_ids per symbol_id of where that data could be
+- 
+
+
+
