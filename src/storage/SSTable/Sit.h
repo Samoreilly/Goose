@@ -3,10 +3,12 @@
 #include <print>
 #include <inttypes.h>
 #include <vector>
+#include <shared_mutex>
 
+#include "../Layout/Storage.h"
 #include "../../dsa/MemTable.h"
 #include "../Layout/Block.h"
-#include "../Layout/Storage.h"
+#include "SSTable.h"
 
 /*
 Columnar
@@ -19,8 +21,8 @@ class Sit {
     Sit() = delete;
 
     //moves sorted chunk data to columnar arrays (storage.mu held by build())
-    void create_blocks(Storage& storage, const std::vector<ChunkSort>& m);
-    void print_blocks(Storage& storage);
+    void create_blocks(std::unique_ptr<SSTable>& sstable, const std::vector<ChunkSort>& m);
+    void print_blocks(SSTable& storage);
     
     //calculates how much blocks are needed - used for blocks.reserve()
     uint32_t calc_reserve_for_blocks(const std::vector<uint32_t>& counts) {
@@ -36,19 +38,24 @@ class Sit {
 public:
 
     Sit(Storage& storage, std::vector<ChunkSort>&& sorted_chunks, std::vector<uint32_t>&& counts, uint32_t n) {
+        
+        if(sorted_chunks.empty()) return;
+
+        auto sstable = std::make_unique<SSTable>();
+        
         //sort outside the lock so queries dont wait
         sort_chunks(sorted_chunks);
 
-        if(sorted_chunks.empty()) return;
-
-        std::lock_guard<std::mutex> lk(storage.mu);
+        std::unique_lock<std::shared_mutex> mu(storage.mu);
 
         //keep original size and calculate new additional size
-        storage.blocks.reserve(storage.blocks.size() + calc_reserve_for_blocks(counts));
+        sstable->blocks.reserve(sstable->blocks.size() + calc_reserve_for_blocks(counts));
         
-        storage.file_metadata.reserve(storage.file_metadata.size() + n);
+        sstable->file_metadata.reserve(sstable->file_metadata.size() + n);
 
-        create_blocks(storage, sorted_chunks);
+        create_blocks(sstable, sorted_chunks);
+
+        storage.sstables.emplace_back(std::move(sstable));
 
         std::println("Transferred to SSTable");
     }

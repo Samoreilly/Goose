@@ -9,16 +9,18 @@
 #include "dsa/MemTable.h"
 #include "dsa/MovingAverage.h"
 #include "wal/WriteStaleWal.h"
-#include "storage/Layout/Storage.h"
+#include "storage/SSTable/SSTable.h"
 #include "storage/SSTable/Sit.h"
+#include "storage/Layout/Storage.h"
+
 
 int main() {
 
    std::println("GooseTSDB started");
 
-   //will contain global indexes, will become std vector<Storage>
+   //will contain global indexes, will become std vector<SSTable>
    Storage storage;
-   MemTable mem_table(storage);
+   MemTable mem_table{storage};
 
   constexpr int N_TICKS = 10000;
    for(int i {0};i < N_TICKS;i++) {

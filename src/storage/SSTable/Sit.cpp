@@ -3,21 +3,25 @@
 #include <algorithm>
 #include <mutex>
 #include <tuple>
+#include <ranges>
+#include <mutex>
+#include <shared_mutex>
 
 #include "Sit.h"
 #include "../Layout/Block.h"
 #include "FileMetadata.h"
+#include "../Layout/Storage.h"
 
-void Sit::create_blocks(Storage& storage, const std::vector<ChunkSort>& sorted_chunks) {
+void Sit::create_blocks(std::unique_ptr<SSTable>& sstable, const std::vector<ChunkSort>& sorted_chunks) {
     //mutex held by build() storage.mu
 
-    storage.blocks.emplace_back();
-    size_t global_block_idx = storage.blocks.size() - 1;
+    sstable->blocks.emplace_back();
+    size_t global_block_idx = sstable->blocks.size() - 1;
 
     size_t block_idx {0};
     uint32_t symbol_id = sorted_chunks[0].symbol_id;
 
-    FileMetadata* metadata = &storage.file_metadata[symbol_id];
+    FileMetadata* metadata = &sstable->file_metadata[symbol_id];
     metadata->block_data.emplace_back();
 
     for(size_t i {0};i < sorted_chunks.size();i++) {
@@ -35,14 +39,14 @@ void Sit::create_blocks(Storage& storage, const std::vector<ChunkSort>& sorted_c
 
             //different symbol so reset everything
             if(diff_symbol) {
-                metadata = &storage.file_metadata[sorted_chunks[i].symbol_id];
+                metadata = &sstable->file_metadata[sorted_chunks[i].symbol_id];
                 metadata->block_data.emplace_back();
                 global_block_idx++;
             }
 
 
-            storage.blocks.back().elements = block_idx;
-            storage.blocks.emplace_back();
+            sstable->blocks.back().elements = block_idx;
+            sstable->blocks.emplace_back();
             
             block_idx = 0;
             symbol_id = sorted_chunks[i].symbol_id;
@@ -64,7 +68,7 @@ void Sit::create_blocks(Storage& storage, const std::vector<ChunkSort>& sorted_c
         bmeta->bmax_price = std::max(bmeta->bmax_price, sorted_chunks[i].price);
         bmeta->bmin_price = std::min(bmeta->bmin_price, sorted_chunks[i].price);
         
-        Block& curr_block = storage.blocks.back();
+        Block& curr_block = sstable->blocks.back();
         
         curr_block.ts[block_idx] = sorted_chunks[i].ts;
         curr_block.price[block_idx] = sorted_chunks[i].price;
@@ -75,7 +79,7 @@ void Sit::create_blocks(Storage& storage, const std::vector<ChunkSort>& sorted_c
 
     //block_idx didnt reach BLOCK_SIZE so change size manually
     if(block_idx > 0) {
-        storage.blocks.back().elements = block_idx;
+        sstable->blocks.back().elements = block_idx;
     }
 
 }
@@ -84,35 +88,45 @@ void Sit::create_blocks(Storage& storage, const std::vector<ChunkSort>& sorted_c
 std::vector<ChunkSort> Sit::lookup(Storage& storage, uint32_t symbol_id, uint64_t t_start, uint64_t t_end) {
     std::vector<ChunkSort> out;
 
-    //lock so no reads occur during this
-    std::lock_guard<std::mutex> lk(storage.mu);
+    //read only
+    std::shared_lock<std::shared_mutex> lk(storage.mu);
 
-    auto it = storage.file_metadata.find(symbol_id);
-    if(it == storage.file_metadata.end()) return out;
+    for(const auto& index : std::views::reverse(storage.sstables)) {
 
-    const FileMetadata& meta = it->second;
+        auto it = index->file_metadata.find(symbol_id);
+        
+        //symbol not in sstable
+        if(it == index->file_metadata.end()) {
+            continue;
+        }
 
-    //symbol scope skip
-    if(t_end < meta.min_ts || t_start > meta.max_ts) return out;
+        const FileMetadata& meta = it->second;
 
-    for(const BlockMeta& bmeta : meta.block_data) {
-        //block scope skip
-        if(t_end < bmeta.bmin_ts || t_start > bmeta.bmax_ts) continue;
+        //symbol scope skip
+        if(t_end < meta.min_ts || t_start > meta.max_ts) {
+            continue;
+        }
 
-        const Block& block = storage.blocks[bmeta.block_id];
-        for(size_t i {0};i < block.elements;i++) {
-            const uint64_t ts = block.ts[i];
-            //is ts is within range
-            if(ts >= t_start && ts <= t_end) {
-                out.push_back({ts, block.price[i], block.vol[i], symbol_id});
+        for(const BlockMeta& bmeta : meta.block_data) {
+            //block scope skip
+            if(t_end < bmeta.bmin_ts || t_start > bmeta.bmax_ts) continue;
+
+            const Block& block = index->blocks[bmeta.block_id];
+            for(size_t i {0};i < block.elements;i++) {
+                const uint64_t ts = block.ts[i];
+                //is ts is within range
+                if(ts >= t_start && ts <= t_end) {
+                    out.push_back({ts, block.price[i], block.vol[i], symbol_id});
+                }
             }
         }
+
     }
 
     return out;
 }
 
-void Sit::print_blocks(Storage& storage) {
+void Sit::print_blocks(SSTable& storage) {
 
     std::lock_guard<std::mutex> lk(storage.mu);
 

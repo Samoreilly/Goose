@@ -8,8 +8,9 @@
 #include <inttypes.h>
 #include <functional>
 
-#include "../storage/BackgroundWork.h"
 #include "../storage/Layout/Storage.h"
+#include "../storage/BackgroundWork.h"
+#include "../storage/SSTable/SSTable.h"
 #include "../DataTypes.h"
 #include "MovingAverage.h"
 

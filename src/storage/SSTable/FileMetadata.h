@@ -32,8 +32,8 @@ struct FileMetadata {
 
     //Symbol scope min/max
     uint64_t max_price {0}, min_price {std::numeric_limits<uint64_t>::max()};
-    uint64_t max_ts {0}, min_ts {std::numeric_limits<uint64_t>::max()};    
+    uint64_t max_ts {0}, min_ts {std::numeric_limits<uint64_t>::max()};
 
- };
+};
 
 
