@@ -17,7 +17,7 @@ template<typename T, size_t SIZE>
 class RingBuffer {
 
     T buffer[SIZE];
-    alignas(8) std::atomic<size_t> /* write */ head {0}, /* read */ tail {0};
+    alignas(64) std::atomic<size_t> /* write */ head {0}, /* read */ tail {0};
     
     uint64_t spins {0};
 

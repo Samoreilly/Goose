@@ -9,6 +9,7 @@
 #include <functional>
 
 #include "../storage/BackgroundWork.h"
+#include "../storage/Layout/Storage.h"
 #include "../DataTypes.h"
 #include "MovingAverage.h"
 
@@ -60,7 +61,9 @@ class MemTable {
 
 public:
 
-    MemTable() {
+    Storage& storage;
+
+    MemTable(Storage& s) : storage(s) {
         cleanup_thread = std::thread(cleanup_memtable, std::ref(*this));
         init_buffer();
     }
@@ -93,6 +96,7 @@ public:
     
     std::mutex mu;
     static constexpr int MAX_TICKS {10000};//NOTE: decide on a optimal value
+
     //Heuristics to know when to flush
     size_t total_ticks {0};
     std::chrono::time_point<std::chrono::steady_clock> last_append;

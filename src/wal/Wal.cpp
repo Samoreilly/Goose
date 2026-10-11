@@ -16,7 +16,7 @@
 void Wal::append(const Tick& data) {
 
    const size_t S = sizeof(Tick);
-   uint8_t* p = buffer;
+   uint8_t* p = buffer + used;
    
    if(used + 4 + S > BUFFER_SIZE_B) {
       if(!flush()) {
@@ -29,8 +29,9 @@ void Wal::append(const Tick& data) {
 
    memcpy(p + 4, &data, S);
 
-   const uint32_t crc_payload = crc32(crc, p + 8, S);
-   memcpy(p + 0, &crc_payload, 4);
+   //on replay, compare stored crc with the recomputed crc of the payload
+   const uint32_t crc_payload = crc32(crc, p + 4, S);
+   memcpy(p, &crc_payload, 4);
 
    used += 4 + S;
 

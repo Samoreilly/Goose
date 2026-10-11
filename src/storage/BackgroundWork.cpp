@@ -51,7 +51,7 @@ void cleanup_memtable(MemTable& mem) {
 
             uint32_t n_symbols = copy_chunks(mem, counts);
             lk.unlock();
-            Sit s(std::move(mem.sorted), std::move(counts), n_symbols);
+            Sit{mem.storage, std::move(mem.sorted), std::move(counts), n_symbols};
          }
 
          return;
@@ -75,8 +75,8 @@ void cleanup_memtable(MemTable& mem) {
          mem.reset_memtable();
          //resources are acquired so we unlock asap, so append() can start again  
          lk.unlock();
- 
-         Sit s(std::move(mem.sorted), std::move(counts), n_symbols);  
+
+         Sit{mem.storage, std::move(mem.sorted), std::move(counts), n_symbols};  
          
      
       }

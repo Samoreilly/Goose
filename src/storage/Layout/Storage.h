@@ -1,5 +1,7 @@
 #pragma once
 
+#include <mutex>
+
 #include "Block.h"
 #include "../SSTable/FileMetadata.h"
 #include "../../helpers/Convert.h"
@@ -20,11 +22,11 @@ public:
     //symbol_id -> All block data for that symbol
     std::unordered_map<uint64_t, FileMetadata> file_metadata;
 
-    Storage(uint32_t n_symbols, uint32_t reserve_amount) : file_metadata(n_symbols) {
-        
-        blocks.reserve(reserve_amount);
-        //the number of symbol_ids found since ingestion
-    }
+    Storage() = default; 
+
+    //This guards blocks + file_metadata.
+    //and prevents append() and lookup() from data races
+    std::mutex mu;
 
     std::vector<Block> blocks;
 };
