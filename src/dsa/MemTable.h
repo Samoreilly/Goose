@@ -23,7 +23,7 @@ struct ChunkSort {
 };
 
 struct Chunk {
-    static constexpr int N = 4096;
+    static constexpr int N = 512;
     uint64_t ts[N] = {0};        
     uint64_t price[N] = {0};     
     uint32_t vol[N] = {0};
@@ -83,7 +83,9 @@ public:
         }
     }
 
-    std::vector<TickerBuffer> buf {15000};
+    //number of tickers
+    static constexpr size_t BUFFER_SIZE {15000};
+    std::vector<TickerBuffer> buf {BUFFER_SIZE};
 
     void init_buffer() {
         for(size_t i {0};i < buf.size();i++) {
@@ -96,7 +98,7 @@ public:
     std::condition_variable cond_var;
     
     std::mutex mu;
-    static constexpr int MAX_TICKS {10000};//NOTE: decide on a optimal value
+    static constexpr int MAX_TICKS {10000};
 
     //Heuristics to know when to flush
     size_t total_ticks {0};
@@ -104,12 +106,11 @@ public:
     bool stop {false};
 
     void reset_memtable() {
-        buf.assign(15000, TickerBuffer{});
+        buf.assign(BUFFER_SIZE, TickerBuffer{});
         init_buffer();
 
         total_ticks = 0;
         total_size = 0;
-        last_append = std::chrono::steady_clock::now();
     }
 
 

@@ -11,7 +11,7 @@
 
 
 void MemTable::append(Tick& t) {
-
+   //static uint32_t c {0};
    //Lock so background cleanup thread doesn't interfere
    std::unique_lock<std::mutex> lk(mu);
 
@@ -39,9 +39,10 @@ void MemTable::append(Tick& t) {
    total_ticks++;
    last_append = std::chrono::steady_clock::now();
 
-
-   if(total_ticks >= MemTable::MAX_TICKS) [[unlikely]] { 
+   //wake up background thread
+   if(total_ticks == 1 || total_ticks >= MemTable::MAX_TICKS) [[unlikely]] { 
       lk.unlock();
+      //std::println("{}", c++);
       cond_var.notify_one();
    }
 

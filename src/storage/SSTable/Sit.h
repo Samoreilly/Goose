@@ -46,6 +46,7 @@ public:
         //sort outside the lock so queries dont wait
         sort_chunks(sorted_chunks);
 
+        //block readers until SSTable has been moved to storage.sstables
         std::unique_lock<std::shared_mutex> mu(storage.mu);
 
         //keep original size and calculate new additional size
@@ -56,7 +57,7 @@ public:
         create_blocks(sstable, sorted_chunks);
 
         storage.sstables.emplace_back(std::move(sstable));
-
+        //static int count {1};
         std::println("Transferred to SSTable");
     }
 

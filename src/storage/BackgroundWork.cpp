@@ -35,53 +35,38 @@ uint32_t copy_chunks(MemTable& mem, std::vector<uint32_t>& counts) {
 }
 
 void cleanup_memtable(MemTable& mem) {
-
+   //locks
+   std::unique_lock<std::mutex> lk(mem.mu);
+ 
    while(true) {
 
-      //locks
-      std::unique_lock<std::mutex> lk(mem.mu);
-     
-      //signalled from MemTable destructor
-      if(mem.stop) [[unlikely]]{
-         //flush remaining from buffer
 
-         if(mem.total_ticks > 0) {
-            std::vector<uint32_t> counts;
-            counts.assign(mem.buf.size(), 0);
+      //blocks thread and unlocks until mem.stop or a tick has been appended
+      //unlock is needed to give append() access
+      mem.cond_var.wait(lk, [&mem] { return mem.stop || mem.total_ticks > 0; });
+    
+      //loop until total_ticks >= max_ticks or 5s timeout
+      while(!mem.stop && mem.total_ticks < MemTable::MAX_TICKS) {
+         const auto status = mem.cond_var.wait_until(lk, mem.last_append + std::chrono::seconds(5));
 
-            uint32_t n_symbols = copy_chunks(mem, counts);
-            lk.unlock();
-            Sit{mem.storage, std::move(mem.sorted), std::move(counts), n_symbols};
+         //if notified and reached time limit
+         if(status == std::cv_status::timeout && ((std::chrono::steady_clock::now() - mem.last_append) >= std::chrono::seconds(5))) {
+            break;
          }
-
-         return;
       }
 
-      const auto timepoint = mem.last_append + std::chrono::seconds(5);
-   
-      //unlocks, sleeps for 5 seconds
-      //or until append() calls notify_one(), then checks condition, if true it locks
-      bool condition_met = mem.cond_var.wait_until(lk, timepoint, [&mem] {
-        return mem.total_ticks > 0 && (mem.total_ticks >= MemTable::MAX_TICKS || (std::chrono::steady_clock::now() - mem.last_append) >= std::chrono::seconds(5));
-      });
-      
-      if(condition_met) {
-         //counts amount of data per symbol. Later used to calc number of blocks needed.
-         std::vector<uint32_t> counts;
-         counts.assign(mem.buf.size(), 0);
-         //swap buffer into sorted
+      //this comparison will only be triggered once total_ticks == max_ticks
+      //or to flush leftovers in buffer from 5s timeout
+      if(mem.total_ticks > 0) { 
+         std::vector<uint32_t> counts(mem.buf.size(), 0);
+        
          uint32_t n_symbols = copy_chunks(mem, counts);
-
-         mem.reset_memtable();
-         //resources are acquired so we unlock asap, so append() can start again  
          lk.unlock();
-
-         Sit{mem.storage, std::move(mem.sorted), std::move(counts), n_symbols};  
-         
-     
+         Sit{mem.storage, std::move(mem.sorted), std::move(counts), n_symbols};
+         lk.lock();
       }
 
-
+      if(mem.stop) return;
    
    }
 }

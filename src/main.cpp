@@ -1,4 +1,5 @@
 
+#include <emmintrin.h>
 #include <format>
 #include <print>
 #include <thread>
@@ -22,20 +23,23 @@ int main() {
    Storage storage;
    MemTable mem_table{storage};
 
-  constexpr int N_TICKS = 10000;
+  constexpr int N_TICKS = 105000;
    for(int i {0};i < N_TICKS;i++) {
       Tick tick{(uint64_t)(1000000 + i), (uint64_t)(100 + i), (uint32_t)i, 1};
       mem_table.append(tick);
    }
 
    //sleep to wait for tick data to propagate across indexes
-   sleep(1);
-
-   auto point = Sit::lookup(storage, 1, 1000000, 1010000);
-   std::println("Point lookup rows: {}", point.size());
-   for(const auto& r : point) {
-      std::println("ts={} price={} vol={} sym={}", r.ts, r.price, r.vol, r.symbol_id);
+   while(storage.sstables.size() != 11) {
+      _mm_pause();
+  //    std::println("{}", storage.sstables.size());
    }
+
+   // auto point = Sit::lookup(storage, 1, 1000000, 1100000);
+   // std::println("Point lookup rows: {}", point.size());
+   // for(const auto& r : point) {
+   //    std::println("ts={} price={} vol={} sym={}", r.ts, r.price, r.vol, r.symbol_id);
+   // }
 
 
    
