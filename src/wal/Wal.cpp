@@ -24,7 +24,6 @@ void Wal::append(const Tick& data) {
       }
 
       std::println("Clearing buffer and writing to disk");
-      return; 
    }
 
    memcpy(p + 4, &data, S);

@@ -81,7 +81,6 @@ void Sit::create_blocks(std::unique_ptr<SSTable>& sstable, const std::vector<Chu
     if(block_idx > 0) {
         sstable->blocks.back().elements = block_idx;
     }
-
 }
 
 

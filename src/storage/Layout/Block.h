@@ -12,7 +12,7 @@ as opposed to corresponding indexes stored together
 This is the columnar design choice, which will make reads super fast
 */
 
-#define BLOCK_SIZE 1024
+#define BLOCK_SIZE 256
 
 /*
 Block size is the limit, it is not a given that the block is full

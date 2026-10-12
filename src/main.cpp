@@ -1,9 +1,9 @@
-
-#include <emmintrin.h>
 #include <format>
 #include <print>
 #include <thread>
 #include <chrono>
+#include <random>
+#include <vector>
 
 #include "Ingestion.h"
 #include "wal/Wal.h"
@@ -19,21 +19,43 @@ int main() {
 
    std::println("GooseTSDB started");
 
+   constexpr int N_TICKS = 50000000;
+   constexpr int N_SYMBOLS = 5000;
+
+   std::mt19937_64 gen{42};
+
+   //creates random symbols
+   std::vector<double> weights(N_SYMBOLS);
+   for(int k {0};k < N_SYMBOLS;k++) {
+      weights[k] = 1.0 / (k + 1);
+   }
+   std::discrete_distribution<uint32_t> symbol(weights.begin(), weights.end());
+   std::uniform_int_distribution<uint64_t> jitter(0, 999);
+
+   std::vector<Tick> ticks;
+   ticks.reserve(N_TICKS);
+   for(int i {0};i < N_TICKS;i++) {
+      ticks.push_back({(uint64_t)(1000000 + i) + jitter(gen), 10000 + jitter(gen), (uint32_t)jitter(gen), symbol(gen)});
+   }
+
    //will contain global indexes, will become std vector<SSTable>
    Storage storage;
-   MemTable mem_table{storage};
 
-  constexpr int N_TICKS = 105000;
-   for(int i {0};i < N_TICKS;i++) {
-      Tick tick{(uint64_t)(1000000 + i), (uint64_t)(100 + i), (uint32_t)i, 1};
-      mem_table.append(tick);
+   auto start = std::chrono::steady_clock::now();
+
+   {
+      MemTable mem_table{storage};
+
+      for(auto& tick : ticks) {
+         mem_table.append(tick);
+      }
    }
 
-   //sleep to wait for tick data to propagate across indexes
-   while(storage.sstables.size() != 11) {
-      _mm_pause();
-  //    std::println("{}", storage.sstables.size());
-   }
+   auto elapsed = std::chrono::steady_clock::now() - start;
+   std::println("Time taken {}", elapsed);
+   std::println("{:.2f}M ticks/s", N_TICKS / std::chrono::duration<double>(elapsed).count() / 1e6);
+
+   std::println("{}", storage.sstables.size());
 
    // auto point = Sit::lookup(storage, 1, 1000000, 1100000);
    // std::println("Point lookup rows: {}", point.size());
@@ -41,8 +63,6 @@ int main() {
    //    std::println("ts={} price={} vol={} sym={}", r.ts, r.price, r.vol, r.symbol_id);
    // }
 
-
-   
    return 0;
 
 }

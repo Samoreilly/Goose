@@ -58,7 +58,7 @@ public:
 
         storage.sstables.emplace_back(std::move(sstable));
         //static int count {1};
-        std::println("Transferred to SSTable");
+        std::println("Transferred to SSTable {}", sorted_chunks.size());
     }
 
     //symbol + timestamp lookup. locks storage.mu, skips on symbol scope

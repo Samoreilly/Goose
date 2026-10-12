@@ -43,7 +43,10 @@ class Wal {
 public:
 
     Wal() {}
-
+    ~Wal() {
+        //flush remaining data in buffer
+        flush();
+    }
     size_t file_counter {0};
     std::string folder_name = "gdb/wal/";
  

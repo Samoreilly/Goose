@@ -7,6 +7,7 @@
 #include <condition_variable>
 #include <inttypes.h>
 #include <functional>
+#include <algorithm>
 
 #include "../storage/Layout/Storage.h"
 #include "../storage/BackgroundWork.h"
@@ -18,12 +19,12 @@
 struct ChunkSort {
     uint64_t ts;
     uint64_t price;
-    uint64_t vol;
+    uint32_t vol;
     uint32_t symbol_id;
 };
 
 struct Chunk {
-    static constexpr int N = 512;
+    static constexpr int N = 64;
     uint64_t ts[N] = {0};        
     uint64_t price[N] = {0};     
     uint32_t vol[N] = {0};
@@ -70,7 +71,8 @@ public:
     }
 
     ~MemTable() {
-       { 
+
+        { 
             std::lock_guard<std::mutex> lk(mu); 
             //signals cleanup thread to stop
             stop = true;
@@ -98,7 +100,7 @@ public:
     std::condition_variable cond_var;
     
     std::mutex mu;
-    static constexpr int MAX_TICKS {10000};
+    static constexpr int MAX_TICKS {200000};
 
     //Heuristics to know when to flush
     size_t total_ticks {0};
@@ -106,7 +108,7 @@ public:
     bool stop {false};
 
     void reset_memtable() {
-        buf.assign(BUFFER_SIZE, TickerBuffer{});
+        std::fill(buf.begin(), buf.end(), TickerBuffer{});
         init_buffer();
 
         total_ticks = 0;
