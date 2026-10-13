@@ -106,7 +106,6 @@ public:
 
     //Heuristics to know when to flush
     size_t total_ticks {0};
-    std::chrono::time_point<std::chrono::steady_clock> last_append;
     bool stop {false};
 
     void reset_memtable() {

@@ -38,7 +38,6 @@ void MemTable::append(Tick& t) {
    memcpy(dest, src, sizeof(slot.last_ts) + sizeof(slot.last_price) + sizeof(slot.last_vol)); 
 
    total_ticks++;
-   last_append = std::chrono::steady_clock::now();
 
    //not sorted if true
    if(t.ts < slot.last_ts) [[unlikely]] {

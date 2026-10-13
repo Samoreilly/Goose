@@ -7,6 +7,7 @@
 #include "BackgroundWork.h"
 #include "SSTable/Sit.h"
 
+using namespace std::chrono_literals;
 
 /*
 Moves buffer into mem.sorted, sorted by symbol_id (unsorted by timestamp)
@@ -37,6 +38,7 @@ uint32_t copy_chunks(MemTable& mem, std::vector<SortMetadata>& counts) {
 
 void cleanup_memtable(MemTable& mem) {
    //locks
+
    std::unique_lock<std::mutex> lk(mem.mu);
  
     while(true) {
@@ -47,11 +49,14 @@ void cleanup_memtable(MemTable& mem) {
     
       //loop until total_ticks >= max_ticks or 5s timeout
       while(!mem.stop && mem.total_ticks < MemTable::MAX_TICKS) {
+         
+         const auto seen = mem.total_ticks;
+
          //blocks thread until time, timeout status occurs when thread has been idle for 5 seconds
-         const auto status = mem.cond_var.wait_until(lk, mem.last_append + std::chrono::seconds(5));
+         const auto status = mem.cond_var.wait_for(lk, std::chrono::seconds(5));
 
          //if notified and reached time limit
-         if(status == std::cv_status::timeout && ((std::chrono::steady_clock::now() - mem.last_append) >= std::chrono::seconds(5))) {
+         if(status == std::cv_status::timeout && mem.total_ticks == seen) {
             break;
          }
       }
