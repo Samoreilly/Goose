@@ -143,11 +143,31 @@ void Sit::print_blocks(SSTable& storage) {
 //This should be really fast because timestamps are mostly in order
 //This is only incase the websocket received them out of order
 //Hard to know if this is actually needed until proper end to end testing
-void Sit::sort_chunks(std::vector<ChunkSort>& sorted_chunks) {
+void Sit::sort_chunks(std::vector<ChunkSort>& sorted_chunks, const std::vector<SortMetadata>& counts) {
 
-   //Compares symbol_id then timestamp then price in ascending
-   std::sort(sorted_chunks.begin(), sorted_chunks.end(), [](const ChunkSort& a, const ChunkSort& b) { 
-        return std::tie(a.symbol_id, a.ts, a.price) < std::tie(b.symbol_id, b.ts, b.price);
-   });
-   
+    auto it = sorted_chunks.begin();
+    for(size_t i {0}; i < counts.size();i++) {
+        auto right = it + counts[i].data;
+        
+        if(!counts[i].sorted) {
+
+            //if two ticks share the same timestamp, there's really no way
+            //to determine which came first which is price is not the secondary sort
+            std::sort(it, right, [](const ChunkSort& a, const ChunkSort& b) { 
+                return std::tie(a.ts) < std::tie(b.ts);
+            });
+        }
+        it = right;
+    }
+
+
 }
+
+
+
+
+
+
+
+
+

@@ -25,26 +25,25 @@ class Sit {
     void print_blocks(SSTable& storage);
     
     //calculates how much blocks are needed - used for blocks.reserve()
-    uint32_t calc_reserve_for_blocks(const std::vector<uint32_t>& counts) {
+    uint32_t calc_reserve_for_blocks(const std::vector<SortMetadata>& counts) {
         size_t blocks {0};
         for (const auto count : counts) {
-            if (count == 0) continue;
-            blocks += (count + BLOCK_SIZE - 1) / BLOCK_SIZE;
+            if (count.data == 0) continue;
+            blocks += (count.data + BLOCK_SIZE - 1) / BLOCK_SIZE;
         }
         return blocks;
-
     }
 
 public:
 
-    Sit(Storage& storage, std::vector<ChunkSort>&& sorted_chunks, std::vector<uint32_t>&& counts, uint32_t n) {
+    Sit(Storage& storage, std::vector<ChunkSort>&& sorted_chunks, std::vector<SortMetadata>&& counts, uint32_t n) {
         
         if(sorted_chunks.empty()) return;
 
         auto sstable = std::make_unique<SSTable>();
         
         //sort outside the lock so queries dont wait
-        sort_chunks(sorted_chunks);
+        sort_chunks(sorted_chunks, counts);
 
         //block readers until SSTable has been moved to storage.sstables
         std::unique_lock<std::shared_mutex> mu(storage.mu);
@@ -58,13 +57,13 @@ public:
 
         storage.sstables.emplace_back(std::move(sstable));
         //static int count {1};
-        std::println("Transferred to SSTable {}", sorted_chunks.size());
+        //std::println("Transferred to SSTable {}", sorted_chunks.size());
     }
 
     //symbol + timestamp lookup. locks storage.mu, skips on symbol scope
     //then block scope min/max, returns matching rows in ts order.
     static std::vector<ChunkSort> lookup(Storage& storage, uint32_t symbol_id, uint64_t t_start, uint64_t t_end);
     
-    void sort_chunks(std::vector<ChunkSort>& sorted_chunks);
+    void sort_chunks(std::vector<ChunkSort>& sorted_chunks, const std::vector<SortMetadata>& counts);
 
 };

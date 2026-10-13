@@ -43,6 +43,8 @@ struct TickerBuffer {
     uint64_t last_price {0};
     uint32_t last_vol {0};
     uint64_t count {0}; //how much data was sent to this ticker
+
+    bool sorted {true};
 };
 
 /*

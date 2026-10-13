@@ -32,31 +32,37 @@ int main() {
    std::discrete_distribution<uint32_t> symbol(weights.begin(), weights.end());
    std::uniform_int_distribution<uint64_t> jitter(0, 999);
 
-   std::vector<Tick> ticks;
-   ticks.reserve(N_TICKS);
-   for(int i {0};i < N_TICKS;i++) {
-      ticks.push_back({(uint64_t)(1000000 + i) + jitter(gen), 10000 + jitter(gen), (uint32_t)jitter(gen), symbol(gen)});
-   }
+   auto dur = std::chrono::duration<double>(0);
+
+   for(int i {0};i < 5;i++) {
+      std::vector<Tick> ticks;
+      ticks.reserve(N_TICKS);
+      for(int j {0};j < N_TICKS;j++) {
+         ticks.push_back({(uint64_t)(1000000 + j) + jitter(gen), 10000 + jitter(gen), (uint32_t)jitter(gen), symbol(gen)});
+      }
 
    //will contain global indexes, will become std vector<SSTable>
    Storage storage;
 
-   auto start = std::chrono::steady_clock::now();
+      auto start = std::chrono::steady_clock::now();
 
-   {
-      MemTable mem_table{storage};
+      {
+         MemTable mem_table{storage};
 
-      for(auto& tick : ticks) {
-         mem_table.append(tick);
+         for(auto& tick : ticks) {
+            mem_table.append(tick);
+         }
       }
+
+      auto elapsed = std::chrono::steady_clock::now() - start;
+      std::println("Time taken {}", elapsed);
+      
+      dur += std::chrono::duration<double>(elapsed);
    }
 
-   auto elapsed = std::chrono::steady_clock::now() - start;
-   std::println("Time taken {}", elapsed);
-   std::println("{:.2f}M ticks/s", N_TICKS / std::chrono::duration<double>(elapsed).count() / 1e6);
 
-   std::println("{}", storage.sstables.size());
-
+ 
+   std::println("{:.2f}M ticks/s", ((N_TICKS * 5) / dur.count()) / 1e6);
    // auto point = Sit::lookup(storage, 1, 1000000, 1100000);
    // std::println("Point lookup rows: {}", point.size());
    // for(const auto& r : point) {

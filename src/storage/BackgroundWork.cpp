@@ -9,21 +9,22 @@
 
 
 /*
-Moves buffer into mem.sorted, unsorted. Sort occurs later
+Moves buffer into mem.sorted, sorted by symbol_id (unsorted by timestamp)
 */
-
-uint32_t copy_chunks(MemTable& mem, std::vector<uint32_t>& counts) {
+uint32_t copy_chunks(MemTable& mem, std::vector<SortMetadata>& counts) {
    mem.sorted.clear();
    mem.sorted.reserve(mem.total_ticks);
 
    std::unordered_set<std::uint32_t> n_symbols;
 
+
    for(const auto& ticker : mem.buf) {
       const auto s_id = ticker.symbol_id;
+      counts[s_id].sorted = ticker.sorted;
 
       for(const auto& chunk : ticker.chunks) {
-         counts[s_id] += chunk.idx;//counts data per symbol_id. used to calc number of blocks later
-
+         counts[s_id].data += chunk.idx;//counts amount of ticks per symbol_id. used to calc number of blocks later
+         
          for(size_t i {0}; i < chunk.idx;i++) {
             n_symbols.insert(s_id);//counts tickers
             mem.sorted.push_back({chunk.ts[i], chunk.price[i], chunk.vol[i], s_id});
@@ -58,7 +59,7 @@ void cleanup_memtable(MemTable& mem) {
       //this comparison will only be triggered once total_ticks == max_ticks
       //or to flush leftovers in buffer from 5s timeout
       if(mem.total_ticks > 0) { 
-         std::vector<uint32_t> counts(mem.buf.size(), 0);
+         std::vector<SortMetadata> counts(mem.buf.size(), SortMetadata{});
 
          uint32_t n_symbols = copy_chunks(mem, counts);
          mem.reset_memtable();

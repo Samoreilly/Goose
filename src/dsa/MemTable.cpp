@@ -16,7 +16,8 @@ void MemTable::append(Tick& t) {
    std::unique_lock<std::mutex> lk(mu);
 
    TickerBuffer& slot = get(t.symbol_id);
-  
+ 
+   //if no chunks or current chunk is full. create new chunk
    if(slot.chunks.empty() || slot.chunks.back().idx == (Chunk::N)) [[unlikely]] {
       slot.chunks.emplace_back();
    }
@@ -38,6 +39,11 @@ void MemTable::append(Tick& t) {
 
    total_ticks++;
    last_append = std::chrono::steady_clock::now();
+
+   //not sorted if true
+   if(t.ts < slot.last_ts) [[unlikely]] {
+      slot.sorted = false;
+   }
 
    //wake up background thread
    if(total_ticks == 1 || total_ticks >= MemTable::MAX_TICKS) [[unlikely]] { 
