@@ -8,6 +8,7 @@
 #include "../Layout/Storage.h"
 #include "../../dsa/MemTable.h"
 #include "../Layout/Block.h"
+#include "../Compression/Compress.h"
 #include "SSTable.h"
 
 /*
@@ -25,7 +26,7 @@ class Sit {
     void print_blocks(SSTable& storage);
     
     //calculates how much blocks are needed - used for blocks.reserve()
-    uint32_t calc_reserve_for_blocks(const std::vector<SortMetadata>& counts) {
+    inline uint32_t calc_reserve_for_blocks(const std::vector<SortMetadata>& counts) {
         size_t blocks {0};
         for (const auto count : counts) {
             if (count.data == 0) continue;
@@ -40,30 +41,28 @@ public:
         
         if(sorted_chunks.empty()) return;
 
-        auto sstable = std::make_unique<SSTable>();
-        
         //sort outside the lock so queries dont wait
         sort_chunks(sorted_chunks, counts);
 
         //block readers until SSTable has been moved to storage.sstables
         std::unique_lock<std::shared_mutex> mu(storage.mu);
-
-        //keep original size and calculate new additional size
-        sstable->blocks.reserve(sstable->blocks.size() + calc_reserve_for_blocks(counts));
+        auto* sstable = build_sstable(storage, sorted_chunks, counts, n);
         
-        sstable->file_metadata.reserve(sstable->file_metadata.size() + n);
+        //compression stage
+        compression::compress(sstable);
 
-        create_blocks(sstable, sorted_chunks);
-
-        storage.sstables.emplace_back(std::move(sstable));
-        //static int count {1};
-        //std::println("Transferred to SSTable {}", sorted_chunks.size());
     }
+
+    //builds and adds SSTable to global SSTable vector and return reference
+    SSTable* build_sstable(
+        Storage& storage, std::vector<ChunkSort>& sorted_chunks,
+        const std::vector<SortMetadata>& counts, uint32_t n
+    );
+
+    void sort_chunks(std::vector<ChunkSort>& sorted_chunks, const std::vector<SortMetadata>& counts);
 
     //symbol + timestamp lookup. locks storage.mu, skips on symbol scope
     //then block scope min/max, returns matching rows in ts order.
     static std::vector<ChunkSort> lookup(Storage& storage, uint32_t symbol_id, uint64_t t_start, uint64_t t_end);
     
-    void sort_chunks(std::vector<ChunkSort>& sorted_chunks, const std::vector<SortMetadata>& counts);
-
 };

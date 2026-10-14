@@ -10,6 +10,7 @@ add_executable(
     src/dsa/MemTable.cpp
     src/storage/SSTable/Sit.cpp
     src/storage/BackgroundWork.cpp
+    src/storage/Compression/Compress.cpp
 )
 
 target_compile_features(goose PRIVATE cxx_std_23)

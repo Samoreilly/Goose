@@ -125,6 +125,23 @@ std::vector<ChunkSort> Sit::lookup(Storage& storage, uint32_t symbol_id, uint64_
     return out;
 }
 
+SSTable* Sit::build_sstable(Storage& storage,
+                std::vector<ChunkSort>& sorted_chunks, const std::vector<SortMetadata>& counts, uint32_t n) {
+  
+    auto sstable = std::make_unique<SSTable>();
+        
+    //keep original size and calculate new additional size
+    sstable->blocks.reserve(sstable->blocks.size() + calc_reserve_for_blocks(counts));
+    
+    sstable->file_metadata.reserve(sstable->file_metadata.size() + n);
+
+    create_blocks(sstable, sorted_chunks);
+
+    //adds SSTable to global SSTable list and returns reference
+    return storage.sstables.emplace_back(std::move(sstable)).get();
+
+}
+
 void Sit::print_blocks(SSTable& storage) {
 
     std::lock_guard<std::mutex> lk(storage.mu);
