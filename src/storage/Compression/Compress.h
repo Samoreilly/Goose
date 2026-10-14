@@ -16,14 +16,23 @@ namespace compression {
     //pointer to element in Storages SSTables vector
     void compress(SSTable* sstable);
     
-    //Delta of Delta
+    
+    /*
+        Writing this was slightly difficult so //NOTE: to help me understand when I come back to this
+        It's practically a queue, the right bits being the front.
+        Unnecessary bits are removed from Value, then appended onto leftside of stream
+        by shifting to align with the bits then ORing to add.
+        
+        storage & 0xFF grabs the right most byte to append
+    */
     struct BitWriter {
         std::vector<uint8_t> out;
 
         int store {0};//holds bits
         int n {0};//holds number of bits
 
-        //this cuts off unneccesary leading bits that dont effect the value
+        //this cuts off unneccesary leading bits that dont affect the value and appends
+        //to the left side of the stream
         //this is to pack bits together, a control prefix will be used to
         //know much bits to read
         void write(uint64_t value, uint32_t bits) {
@@ -33,11 +42,17 @@ namespace compression {
             // prev - 1 = 0b0000 0111
             
             value &= (1ULL << bits) - 1;
+            
+          
+            //shift incoming value over used bits to be be adjacent
+            store |= (value << n);
             n += bits;
 
-            if(n >= 8) {
-                out.push_back(value);
-                n = 0; 
+            while(n >= 8) {
+                //get the last byte
+                out.push_back(static_cast<uint8_t>(store & 0xFF));
+                store >>= 8;//shifts to right
+                n  -= 8; 
             }
         }
 
@@ -45,7 +60,8 @@ namespace compression {
 
 
     void encode_ts_price(std::span<const uint64_t> ts, std::vector<int64_t>& arr, size_t& used);
-    void write_ts_price(BitWriter& writer, const std::span<const int64_t> dods);
+    void write_ts(BitWriter& writer, const std::span<const int64_t> dods);
+    void write_price(BitWriter& writer, const std::span<const int64_t> dods);
 
 }
 
