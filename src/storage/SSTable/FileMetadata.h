@@ -18,7 +18,13 @@ struct BlockMeta {
     uint32_t file_offset;//where block starts
     uint32_t compressed_size;//size of compressed block
     uint32_t elements;//number of elements in block(necessary for half filled blocks)
+
+    size_t ts_offset {0}, ts_size {0};
+    size_t price_offset {0}, price_size {0};
+    size_t vol_offset {0}, vol_size {0};
+
 };
+
 
 
 /*
@@ -27,13 +33,14 @@ whereas the local scope is the min/max for that specific block
 */
 struct FileMetadata {
     uint64_t file_number {0};
-    
+        
     std::vector<BlockMeta> block_data;
 
     //Symbol scope min/max
     uint64_t max_price {0}, min_price {std::numeric_limits<uint64_t>::max()};
     uint64_t max_ts {0}, min_ts {std::numeric_limits<uint64_t>::max()};
 
+    size_t block_offset {0};
 };
 
 
