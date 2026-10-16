@@ -81,6 +81,52 @@ int main() {
    compression::encode_ts_price(std::span<uint64_t>(ts).first(7), res, used);
 
 
+   //compression round trip testing
+   //ticks go through the pipeline to disk, then every block is decoded and compared
+
+   {
+      std::mt19937_64 gen{42};
+      std::uniform_int_distribution<uint64_t> jitter(0, 999);
+      std::uniform_int_distribution<uint32_t> symbol(0, 49);
+
+      Storage storage;
+
+      {
+         MemTable mem_table{storage};
+
+         for(int j {0};j < 100000;j++) {
+            Tick t {(uint64_t)(1000000 + j) + jitter(gen), 10000 + jitter(gen), (uint32_t)jitter(gen), symbol(gen)};
+            mem_table.append(t);
+         }
+      }
+
+      size_t blocks {0}, mismatched {0};
+
+      //to verify if original blocks match decoded blocks
+      for(auto& sstable : storage.sstables) {
+         for(auto& [symbol_id, meta] : sstable->file_metadata) {
+            for(const BlockMeta& bmeta : meta.block_data) {
+
+               Block decoded = compression::decode(storage, sstable.get(), symbol_id, bmeta.block_id);
+               const Block& original = sstable->blocks[bmeta.block_id];
+               blocks++;
+
+               bool same = decoded.elements == original.elements;
+               for(size_t i {0};same && i < original.elements;i++) {
+                  same = decoded.ts[i] == original.ts[i]
+                     && decoded.price[i] == original.price[i]
+                     && decoded.vol[i] == original.vol[i];
+               }
+
+               if(!same) mismatched++;
+            }
+         }
+      }
+
+      std::println("{} blocks, {} failed encode/decodes", blocks, mismatched);
+   }
+
+
 
 
 

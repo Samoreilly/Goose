@@ -49,8 +49,7 @@ public:
         auto* sstable = build_sstable(storage, sorted_chunks, counts, n);
         
         //compression stage
-        compression::compress(sstable);
-
+        compression::compress(storage, sstable);
     }
 
     //builds and adds SSTable to global SSTable vector and return reference

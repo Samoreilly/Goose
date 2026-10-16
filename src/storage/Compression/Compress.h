@@ -3,18 +3,16 @@
 #include <span>
 
 #include "../SSTable/SSTable.h"
+#include "../Layout/Storage.h"
 
 /*
 Delta of Delta for timestamp and price, currently undecided on the method for vol
 */
 namespace compression {
 
-    inline size_t file_counter {0};
-    inline std::string folder_name = "gdb/goose";
-    
 
     //pointer to element in Storages SSTables vector
-    void compress(SSTable* sstable);
+    void compress(Storage& storage, SSTable* sstable);
     
     
     /*
@@ -73,13 +71,53 @@ namespace compression {
 
     };
 
+    //opposite of BitWriter, bytes are added to the left side of store
+    //and bits are taken from the right
+    struct BitReader {
+        std::span<const uint8_t> in;
+        size_t pos {0};//next byte to read
+
+        uint64_t store {0};//holds bits
+        uint32_t n {0};//holds number of bits
+
+        uint64_t read(uint32_t bits) {
+
+            //same split as write, low half comes first
+            if(bits > 32) {
+                uint64_t low = read(32);
+                uint64_t high = read(bits - 32);
+                return low | (high << 32);
+            }
+
+            while(n < bits) {
+                //past the end reads as 0s, only padding should hit this
+                uint64_t byte = pos < in.size() ? in[pos++] : 0;
+                store |= (byte << n);
+                n += 8;
+            }
+
+            uint64_t value = store & ((1ULL << bits) - 1);
+            store >>= bits;
+            n -= bits;
+
+            return value;
+        }
+    };
+
 
     void encode_vol(std::span<const uint32_t> data, std::vector<int32_t>& arr, size_t& used);
     void encode_ts_price(std::span<const uint64_t> data, std::vector<int64_t>& arr, size_t& used);
-
+    
     void write_ts_price_vol(BitWriter& writer, const std::span<const int64_t> dods);
     void write_vol(BitWriter& writer, const std::span<const int32_t> dods);
 
+    void read_ts_price_vol(BitReader& reader, std::span<int64_t> dods);
+    void read_vol(BitReader& reader, std::span<int32_t> dods);
 
+    void decode_ts_price(std::span<const int64_t> arr, std::span<uint64_t> data);
+    void decode_vol(std::span<const int32_t> arr, std::span<uint32_t> data);
+
+    //block_id is the block we want to decode
+    Block decode(Storage& storage, SSTable* sstable, uint64_t symbol_id, uint64_t block_id);
 }
 

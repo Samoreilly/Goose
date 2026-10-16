@@ -1,17 +1,24 @@
 
 #include <fcntl.h>
+#include <unistd.h>
+#include <cerrno>
+#include <format>
 #include <filesystem>
 #include <span>
+#include <array>
 #include <print>
 #include <cstring>
+
+#include <fstream>
+
 #include "Compress.h"
 
 namespace fs = std::filesystem;
 
-void compression::compress(SSTable *sstable) {
+void compression::compress(Storage& storage, SSTable *sstable) {
 
-   //fs::path file_path = folder_name + std::to_string(file_counter);
-   //int fd = open(file_path.c_str(), O_CREAT | O_APPEND | O_WRONLY);
+   //only the flusher calls this so the counter is safe to bump
+   const size_t file_number = storage.file_counter++;
 
    //used to calc offsets as we go
    size_t base_offset {0};
@@ -24,9 +31,12 @@ void compression::compress(SSTable *sstable) {
    BitWriter writer;
 
    for(auto& [symbol_id, meta] : sstable->file_metadata) {
+      meta.file_number = file_number;
+
       for(BlockMeta& bmeta : meta.block_data) {
          
          Block& block = sstable->blocks[bmeta.block_id];
+         bmeta.elements = block.elements;
 
          bmeta.ts_offset = writer.out.size();
          compression::encode_ts_price(std::span<uint64_t>(block.ts).first(block.elements), timestamp, base_offset); 
@@ -51,18 +61,46 @@ void compression::compress(SSTable *sstable) {
          writer.flush();
          
          bmeta.vol_size = (writer.out.size() - bmeta.vol_offset);
-         base_offset += writer.out.size();
-         
+         base_offset += writer.out.size(); 
       }
    }
    
-   std::vector<uint8_t> data = writer.out;
+   //crash safety
+   //written to .tmp first then renamed, so a crash mid write never leaves a half written .goose file
+   //this could corrupt data
+   const std::string tmp_path = std::format("{}{:06}.tmp", storage.folder_name, file_number);
+   const std::string file_path = std::format("{}{:06}.goose", storage.folder_name, file_number);
+
+   int fd = open(tmp_path.c_str(), O_CREAT | O_TRUNC | O_WRONLY, 0644);
+   if(fd == -1) {
+      std::println("Failed to open {}", tmp_path);
+      return;
+   }
+
+   size_t written {0};
+   while(written < writer.out.size()) {
+      ssize_t n = write(fd, writer.out.data() + written, writer.out.size() - written);
+      if(n == -1) {
+         if(errno == EINTR) continue;
+         std::println("Failed to write bytes to {}", tmp_path);
+         close(fd);
+         return;
+      }
+      written += n;
+   }
+
+   if(fsync(fd) != 0 || close(fd) != 0) {
+      std::println("Failed to sync {}", tmp_path);
+      return;
+   }
+
+   fs::rename(tmp_path, file_path);
 
 }
 
 void compression::encode_ts_price(std::span<const uint64_t> data, std::vector<int64_t>& arr, size_t& used) {
    
-   arr[0] = data[0];
+   arr[0] = data[0];//first timestamp needed to calc subsequent timestamps 
    
    if(data.size() == 1) {
      return;
@@ -75,8 +113,7 @@ void compression::encode_ts_price(std::span<const uint64_t> data, std::vector<in
       arr[i] = (data[i] - data[i - 1]) - (data[i - 1] - data[i - 2]);
    }
 
-   arr[0] = data[0];//first timestamp needed to calc subsequent timestamps 
-   arr[1] = data[1] - data[0];//first delta
+  arr[1] = data[1] - data[0];//first delta
 
 }
 
@@ -102,6 +139,7 @@ void compression::write_ts_price_vol(BitWriter& writer, const std::span<const in
    //single element blocks still need their first value
    writer.write(dods[0], 64);
    if(dods.size() == 1) return;
+   //delta or delta
    writer.write(dods[1], 64);
 
    //https://gist.github.com/mfuerstenau/ba870a29e16536fdbaba
@@ -153,6 +191,7 @@ void compression::write_vol(BitWriter& writer, const std::span<const int32_t> do
    //https://gist.github.com/mfuerstenau/ba870a29e16536fdbaba
    //>> 31 smears the sign bit across all 32 bits
    auto zigzag = [](int32_t val) -> uint32_t {
+      //arithmetic right shift to make negative/non negative btis fill with 1, 0 respectively
       return (static_cast<uint32_t>(val) << 1) ^ static_cast<uint32_t>(val >> 31);
    };
   
@@ -185,12 +224,149 @@ void compression::write_vol(BitWriter& writer, const std::span<const int32_t> do
 
 }
 
+void compression::read_ts_price_vol(BitReader& reader, std::span<int64_t> dods) {
 
+   if(dods.empty()) return;
 
+   dods[0] = static_cast<int64_t>(reader.read(64));
+   if(dods.size() == 1) return;
+   dods[1] = static_cast<int64_t>(reader.read(64));
 
+   auto unzigzag = [](uint64_t val) -> int64_t {
+      return static_cast<int64_t>((val >> 1) ^ -(val & 1));
+   };
 
+   //bits to read for each prefix, indexed by how many 1s it has
+   //0 -> 0, 10 -> 7, 110 -> 9, 1110 -> 11, 1111 -> 64
+   constexpr std::array<uint32_t, 5> widths {0, 7, 9, 11, 64};
 
+   for(size_t i {2};i < dods.size();i++) {
 
+      //count 1s until a 0, the longest prefix is four 1s
+      uint32_t ones {0};
+      while(ones < 4 && reader.read(1) == 1) {
+         ones++;
+      }
 
+      //width 0 reads nothing so a dod of 0 comes out as 0
+      dods[i] = unzigzag(reader.read(widths[ones]));
+   }
 
+}
 
+void compression::read_vol(BitReader& reader, std::span<int32_t> dods) {
+
+   if(dods.empty()) return;
+
+   dods[0] = static_cast<int32_t>(reader.read(32));
+   if(dods.size() == 1) return;
+   dods[1] = static_cast<int32_t>(reader.read(32));
+
+   //https://gist.github.com/mfuerstenau/ba870a29e16536fdbaba
+   auto unzigzag = [](uint32_t val) -> int32_t {
+      return static_cast<int32_t>((val >> 1) ^ -(val & 1));
+   };
+
+   //this undoes write_vol() and write_ts_price_vol 
+   //same as read_ts_price_vol but the last width is 32
+   constexpr std::array<uint32_t, 5> widths {0, 7, 9, 11, 32};
+
+   //checks how much ones then reads mapped amount based of ones
+   for(size_t i {2};i < dods.size();i++) {
+
+      uint32_t ones {0};
+      while(ones < 4 && reader.read(1) == 1) {
+         ones++;
+      }
+
+      dods[i] = unzigzag(static_cast<uint32_t>(reader.read(widths[ones])));
+   }
+
+}
+
+void compression::decode_ts_price(std::span<const int64_t> arr, std::span<uint64_t> data) {
+
+   if(arr.empty()) return;
+
+   data[0] = arr[0];
+   if(arr.size() == 1) return;
+
+   //delta is rebuilt as we go, then added onto the previous value
+   uint64_t delta = arr[1];
+   data[1] = data[0] + delta;
+
+   for(size_t i {2};i < arr.size();i++) {
+      delta += arr[i];
+      data[i] = data[i - 1] + delta;
+   }
+
+}
+
+void compression::decode_vol(std::span<const int32_t> arr, std::span<uint32_t> data) {
+
+   if(arr.empty()) return;
+
+   data[0] = arr[0];
+
+   for(size_t i {1};i < arr.size();i++) {
+      data[i] = data[i - 1] + arr[i];
+   }
+
+}
+
+Block compression::decode(Storage& storage, SSTable* sstable, uint64_t symbol_id, uint64_t block_id) {
+
+   Block block;
+
+   auto s_data = sstable->file_metadata.find(symbol_id);
+   if(s_data == sstable->file_metadata.end()) return block;
+
+   const std::string file_name = std::format("{}{:06}.goose", storage.folder_name, s_data->second.file_number);
+   std::ifstream file(file_name, std::ios::binary);
+
+   if(!file) {
+      std::println("No file found");
+      return block;
+   }
+
+   //find the metadata for block_id
+   const BlockMeta* bmeta {nullptr};
+   for(const BlockMeta& b : s_data->second.block_data) {
+      if(b.block_id == block_id) {
+         bmeta = &b;
+         break;
+      }
+   }
+   if(!bmeta) return block;
+
+   block.elements = bmeta->elements;
+
+   auto read_bytes = [&](size_t offset, size_t size) {
+      std::vector<uint8_t> bytes(size);
+      file.seekg(offset, std::ios::beg);
+      file.read(reinterpret_cast<char*>(bytes.data()), size);
+      return bytes;
+   };
+
+   //decodes ts, price and vol seperately
+   std::vector<int64_t> dods(block.elements);
+   std::vector<int32_t> vol_deltas(block.elements);
+
+   std::vector<uint8_t> bytes = read_bytes(bmeta->ts_offset, bmeta->ts_size);
+   BitReader ts_reader {bytes};
+   compression::read_ts_price_vol(ts_reader, dods);
+   compression::decode_ts_price(dods, std::span(block.ts).first(block.elements));
+
+   bytes = read_bytes(bmeta->price_offset, bmeta->price_size);
+   BitReader price_reader {bytes};
+   compression::read_ts_price_vol(price_reader, dods);
+   compression::decode_ts_price(dods, std::span(block.price).first(block.elements));
+
+   bytes = read_bytes(bmeta->vol_offset, bmeta->vol_size);
+   BitReader vol_reader {bytes};
+   compression::read_vol(vol_reader, vol_deltas);
+   compression::decode_vol(vol_deltas, std::span(block.vol).first(block.elements));
+
+   return block;
+
+}
