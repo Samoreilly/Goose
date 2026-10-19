@@ -42,7 +42,7 @@ public:
             return;
         }
 
-        for(auto const& entry : std::filesystem::directory_iterator{file_path}) {
+        for(const auto& entry : std::filesystem::directory_iterator{file_path}) {
             
             //gives the files name excluding the extension
             auto file_name_wext = entry.path().stem().native();

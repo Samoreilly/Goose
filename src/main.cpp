@@ -152,6 +152,7 @@ int main() {
                same = false;
                break;
             }
+
             const FileMetadata& meta = it->second;
 
             same = meta.file_number == original.file_number

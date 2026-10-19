@@ -125,8 +125,20 @@ namespace compression {
 
     //will contain all metadata for blocks 
     void encode_index(std::vector<uint64_t>& out, const std::unordered_map<uint64_t, FileMetadata>& metadata, size_t base_offset);
+    
     //decoding SSTable's will occur in the background on start.
     //Undecided how these will be loaded on start
     std::unordered_map<uint64_t, FileMetadata> decode_index(Storage& storage, const uint64_t file_counter);
+
+
+
+    /*
+        Compaction related functions 
+    */
+
+    //returns index from file named "file_path"
+    std::unordered_map<uint64_t, FileMetadata> get_index(std::filesystem::path file_path);
+
+
 }
 

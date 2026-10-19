@@ -26,7 +26,6 @@ void compression::compress(Storage& storage, SSTable *sstable) {
    //used to calc offsets as we go
    size_t base_offset {0};
 
-
    std::vector<int64_t> timestamp(sstable->blocks.size() * BLOCK_SIZE * 3);
    std::vector<int64_t> price(sstable->blocks.size() * BLOCK_SIZE * 3);
    std::vector<int32_t> volume(sstable->blocks.size() * BLOCK_SIZE * 3);
@@ -172,10 +171,11 @@ Block compression::decode(Storage& storage, SSTable* sstable, uint64_t symbol_id
 
 void compression::encode_index(std::vector<uint64_t>& out, const std::unordered_map<uint64_t, FileMetadata>& metadata, size_t base_offset) {
 
-   //the base offset will be stored in the last 8 bytes of the file
+   //values will be stored at a fixed width of 8 bytes but read back there actual size
+   //index will be stored at the end with a offset to the index in the last 8 bytes
 
-   //values will be stored as 8 bytes but read back as actual type
-   //metadata will be stored at the end
+   out.push_back(static_cast<uint64_t>(0));//compaction level
+
    for(const auto& [key, val] : metadata) {
 
       out.push_back(key);//symbol_id
@@ -207,13 +207,14 @@ void compression::encode_index(std::vector<uint64_t>& out, const std::unordered_
          out.push_back(static_cast<uint64_t>(bmeta.price_size));
          out.push_back(static_cast<uint64_t>(bmeta.vol_offset));
          out.push_back(static_cast<uint64_t>(bmeta.vol_size));
+
       }
 
    }
 
    //this is the end of the file, it will be read to know
    //the starting point of the index
-   out.push_back(static_cast<uint64_t>(base_offset));
+   out.push_back(static_cast<uint64_t>(base_offset) + 8);
 }
 
 // BLOCK 1 | BLOCK 2 | INDEX | 8 byte integer storing offset to index
@@ -233,12 +234,45 @@ std::unordered_map<uint64_t, FileMetadata> compression::decode_index(Storage& st
    //reads last 8 bytes of file
    pread(fd, &index_offset, 8, file_size - 8);
 
+   const size_t index_size = file_size - 8 - index_offset;
+
+   std::vector<uint64_t> in(index_size / 8);
+  
+   //read full index into buffer
+   pread(fd, in.data(), index_size, index_offset);
+
+   fs::path path(file_path);
+
+   auto metadata = compression::get_index(path);
+
+   close(fd);
+
+   return metadata;
+
+}
+
+
+std::unordered_map<uint64_t, FileMetadata> compression::get_index(std::filesystem::path file_path) {
+
+   int fd = open(file_path.c_str(), O_RDONLY, 0644);
+
+   uint64_t file_size {0};
+   struct stat st;
+
+   if(!fstat(fd, &st)) {
+      file_size = st.st_size;
+   }
+
+   uint64_t index_offset {0};
+   //reads last 8 bytes of file
+   pread(fd, &index_offset, 8, file_size - 8);
 
    const size_t index_size = file_size - 8 - index_offset;
 
    std::vector<uint64_t> in(index_size / 8);
-
    std::unordered_map<uint64_t, FileMetadata> metadata;
+
+
    //read full index into buffer
    pread(fd, in.data(), index_size, index_offset);
 
@@ -284,6 +318,7 @@ std::unordered_map<uint64_t, FileMetadata> compression::decode_index(Storage& st
    return metadata;
 
 }
+
 
 
 
