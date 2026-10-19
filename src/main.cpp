@@ -143,6 +143,7 @@ int main() {
 
          bool same = decoded.size() == sstable->file_metadata.size();
 
+
          for(const auto& [symbol_id, original] : sstable->file_metadata) {
             if(!same) break;
 
