@@ -1,4 +1,5 @@
 
+#include <cstdio>
 #include <fcntl.h>
 #include <unistd.h>
 #include <cerrno>
@@ -8,8 +9,10 @@
 #include <array>
 #include <print>
 #include <cstring>
-
 #include <fstream>
+#include <fstream>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 #include "Compress.h"
 
@@ -65,6 +68,16 @@ void compression::compress(Storage& storage, SSTable *sstable) {
       }
    }
    
+   std::vector<uint64_t> out;
+
+   //encodes full index at the end of file and 8 byte offset to start of offset
+   encode_index(out, sstable->file_metadata, base_offset);
+
+   //all data is fixed size until read
+   for(auto& byte : out) {
+      writer.write(byte, 64);
+   }
+
    //crash safety
    //written to .tmp first then renamed, so a crash mid write never leaves a half written .goose file
    //this could corrupt data
@@ -202,7 +215,7 @@ void compression::write_vol(BitWriter& writer, const std::span<const int32_t> do
       /*
          This is the control prefix, it tells us how much bits to write based off our value
          When compressed data is read, we will scan for a control prefix,
-         if for example, we find '10' we know to read 7 bits
+         if for example, we find '01' we know to read 7 bits
       */
       if(dod == 0) {
          writer.write(0b0, 1);
@@ -370,3 +383,135 @@ Block compression::decode(Storage& storage, SSTable* sstable, uint64_t symbol_id
    return block;
 
 }
+
+
+
+void compression::encode_index(std::vector<uint64_t>& out, const std::unordered_map<uint64_t, FileMetadata>& metadata, size_t base_offset) {
+
+   //the base offset will be stored in the last 8 bytes of the file
+
+   //values will be stored as 8 bytes but read back as actual type
+   //metadata will be stored at the end
+   for(const auto& [key, val] : metadata) {
+
+      out.push_back(key);//symbol_id
+
+      out.push_back(val.file_number);
+      out.push_back(val.max_ts);
+      out.push_back(val.min_ts);
+      out.push_back(val.max_price);
+      out.push_back(val.min_price);
+      out.push_back(val.block_offset);
+
+      out.push_back(val.block_data.size());
+     
+      //metadata last
+      for(const auto& bmeta : val.block_data) {
+         
+         out.push_back(static_cast<uint64_t>(bmeta.block_id));
+         
+         out.push_back(static_cast<uint64_t>(bmeta.bmax_ts));
+         out.push_back(static_cast<uint64_t>(bmeta.bmin_ts));
+         out.push_back(static_cast<uint64_t>(bmeta.bmax_price));
+         out.push_back(static_cast<uint64_t>(bmeta.bmin_price));
+         
+         out.push_back(static_cast<uint64_t>(bmeta.elements));
+
+         out.push_back(static_cast<uint64_t>(bmeta.ts_offset));
+         out.push_back(static_cast<uint64_t>(bmeta.ts_size));
+         out.push_back(static_cast<uint64_t>(bmeta.price_offset));
+         out.push_back(static_cast<uint64_t>(bmeta.price_size));
+         out.push_back(static_cast<uint64_t>(bmeta.vol_offset));
+         out.push_back(static_cast<uint64_t>(bmeta.vol_size));
+      }
+
+   }
+
+   //this is the end of the file, it will be read to know
+   //the starting point of the index
+   out.push_back(static_cast<uint64_t>(base_offset));
+}
+
+// BLOCK 1 | BLOCK 2 | INDEX | 8 byte integer storing offset to index
+std::unordered_map<uint64_t, FileMetadata> compression::decode_index(Storage& storage, const uint64_t file_counter) {
+
+   const std::string file_path = std::format("{}{:06}.goose", storage.folder_name, file_counter);
+   int fd = open(file_path.c_str(), O_RDONLY, 0644);
+
+   uint64_t file_size {0};
+   struct stat st;
+
+   if(!fstat(fd, &st)) {
+      file_size = st.st_size;
+   }
+
+   uint64_t index_offset {0};
+   //reads last 8 bytes of file
+   pread(fd, &index_offset, 8, file_size - 8);
+
+
+   const size_t index_size = file_size - 8 - index_offset;
+
+   std::vector<uint64_t> in(index_size / 8);
+
+   std::unordered_map<uint64_t, FileMetadata> metadata;
+   //read full index into buffer
+   pread(fd, in.data(), index_size, index_offset);
+
+   //same order as encode_index, i moves along as each value is read
+   for(size_t i {0};i < in.size();) {
+
+      uint64_t symbol_id = in[i++];
+      FileMetadata& meta = metadata[symbol_id];
+
+      meta.file_number = in[i++];
+      meta.max_ts = in[i++];
+      meta.min_ts = in[i++];
+      meta.max_price = in[i++];
+      meta.min_price = in[i++];
+      meta.block_offset = in[i++];
+
+      const uint64_t n_blocks = in[i++];
+      meta.block_data.resize(n_blocks);
+
+      for(BlockMeta& bmeta : meta.block_data) {
+
+         bmeta.block_id = in[i++];
+
+         bmeta.bmax_ts = in[i++];
+         bmeta.bmin_ts = in[i++];
+         bmeta.bmax_price = in[i++];
+         bmeta.bmin_price = in[i++];
+
+         bmeta.elements = static_cast<uint32_t>(in[i++]);
+
+         bmeta.ts_offset = in[i++];
+         bmeta.ts_size = in[i++];
+         bmeta.price_offset = in[i++];
+         bmeta.price_size = in[i++];
+         bmeta.vol_offset = in[i++];
+         bmeta.vol_size = in[i++];
+      }
+
+   }
+
+   close(fd);
+
+   return metadata;
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

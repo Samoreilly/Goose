@@ -102,7 +102,7 @@ int main() {
 
       size_t blocks {0}, mismatched {0};
 
-      //to verify if original blocks match decoded blocks
+      //to verify if original blocks match encoded -> decoded blocks
       for(auto& sstable : storage.sstables) {
          for(auto& [symbol_id, meta] : sstable->file_metadata) {
             for(const BlockMeta& bmeta : meta.block_data) {
@@ -110,6 +110,7 @@ int main() {
                Block decoded = compression::decode(storage, sstable.get(), symbol_id, bmeta.block_id);
                const Block& original = sstable->blocks[bmeta.block_id];
                blocks++;
+
 
                bool same = decoded.elements == original.elements;
                for(size_t i {0};same && i < original.elements;i++) {
@@ -124,6 +125,65 @@ int main() {
       }
 
       std::println("{} blocks, {} failed encode/decodes", blocks, mismatched);
+
+
+      //This used to validate the index encoding/decoding on disk
+      //The test writes index to disk and later reads and loads back into memory
+      //and compares original to read
+      size_t indexes {0}, index_mismatched {0};
+
+      for(auto& sstable : storage.sstables) {
+
+         if(sstable->file_metadata.empty()) continue;
+
+         //every symbol in an sstable shares the same file number
+         const uint64_t file_number = sstable->file_metadata.begin()->second.file_number;
+         auto decoded = compression::decode_index(storage, file_number);
+         indexes++;
+
+         bool same = decoded.size() == sstable->file_metadata.size();
+
+         for(const auto& [symbol_id, original] : sstable->file_metadata) {
+            if(!same) break;
+
+            auto it = decoded.find(symbol_id);
+            if(it == decoded.end()) {
+               same = false;
+               break;
+            }
+            const FileMetadata& meta = it->second;
+
+            same = meta.file_number == original.file_number
+               && meta.max_ts == original.max_ts
+               && meta.min_ts == original.min_ts
+               && meta.max_price == original.max_price
+               && meta.min_price == original.min_price
+               && meta.block_offset == original.block_offset
+               && meta.block_data.size() == original.block_data.size();
+
+            for(size_t i {0};same && i < original.block_data.size();i++) {
+               const BlockMeta& a = meta.block_data[i];
+               const BlockMeta& b = original.block_data[i];
+
+               same = a.block_id == b.block_id
+                  && a.bmax_ts == b.bmax_ts
+                  && a.bmin_ts == b.bmin_ts
+                  && a.bmax_price == b.bmax_price
+                  && a.bmin_price == b.bmin_price
+                  && a.elements == b.elements
+                  && a.ts_offset == b.ts_offset
+                  && a.ts_size == b.ts_size
+                  && a.price_offset == b.price_offset
+                  && a.price_size == b.price_size
+                  && a.vol_offset == b.vol_offset
+                  && a.vol_size == b.vol_size;
+            }
+         }
+
+         if(!same) index_mismatched++;
+      }
+
+      std::println("{} indexes, {} failed index encode/decodes", indexes, index_mismatched);
    }
 
 

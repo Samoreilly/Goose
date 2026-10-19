@@ -12,11 +12,9 @@ struct BlockMeta {
     
     uint64_t block_id;
     //These are local min/maxes for this block
+    uint64_t bmax_ts {0}, bmin_ts {std::numeric_limits<uint64_t>::max()};     
     uint64_t bmax_price {0}, bmin_price {std::numeric_limits<uint64_t>::max()};
-    uint64_t bmax_ts {0}, bmin_ts {std::numeric_limits<uint64_t>::max()};    
-        
-    uint32_t file_offset;//where block starts
-    uint32_t compressed_size;//size of compressed block
+       
     uint32_t elements;//number of elements in block(necessary for half filled blocks)
 
     size_t ts_offset {0}, ts_size {0};
@@ -36,10 +34,10 @@ struct FileMetadata {
         
     std::vector<BlockMeta> block_data;
 
+    uint64_t max_ts {0}, min_ts {std::numeric_limits<uint64_t>::max()};
     //Symbol scope min/max
     uint64_t max_price {0}, min_price {std::numeric_limits<uint64_t>::max()};
-    uint64_t max_ts {0}, min_ts {std::numeric_limits<uint64_t>::max()};
-
+    
     size_t block_offset {0};
 };
 
