@@ -1,5 +1,7 @@
+#pragma once
 
 #include <thread>
+#include <unordered_set>
 
 #include "../Compression/Compress.h"
 #include "../Layout/Storage.h"
@@ -15,19 +17,21 @@ A size threshold
 If there min/max values overlap
 */
 
+#define MAX_COMPACTION_FILE_SIZE 64'000'000
+
 class Compaction {
 
    Storage& storage;
 
    std::thread comp;
-   void compact();
-   
-   void evaluate(const auto& cand_one, const auto& cand_two) const;
+
+   void search();
+   void compact(const std::vector<std::pair<std::string, std::string>> candidates);
+   bool evaluate(const auto& cand_one, const auto& cand_two) const;
 
 public:
 
    Compaction(Storage& s) : storage(s) {}
-
 
    void start();
 

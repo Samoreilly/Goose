@@ -320,6 +320,61 @@ std::unordered_map<uint64_t, FileMetadata> compression::get_index(std::filesyste
 }
 
 
+std::unique_ptr<SSTable> compression::load_sstable(std::filesystem::path file_path) {
+
+   //sstable holds a mutex so it cant be returned by value
+   auto sstable = std::make_unique<SSTable>();
+   sstable->file_metadata = compression::get_index(file_path);
+
+   //whole file is read once, columns are decoded from it
+   std::ifstream file(file_path, std::ios::binary);
+   if(!file) {
+      std::println("No file found");
+      return sstable;
+   }
+   std::vector<uint8_t> bytes(fs::file_size(file_path));
+   file.read(reinterpret_cast<char*>(bytes.data()), bytes.size());
+
+   //block_id indexes into blocks
+   uint64_t max_id {0};
+   for(const auto& [symbol_id, meta] : sstable->file_metadata) {
+      for(const BlockMeta& bmeta : meta.block_data) {
+         max_id = std::max(max_id, bmeta.block_id);
+      }
+   }
+   if(!sstable->file_metadata.empty()) sstable->blocks.resize(max_id + 1);
+
+   std::vector<int64_t> dods(BLOCK_SIZE);
+   std::vector<int32_t> vol_deltas(BLOCK_SIZE);
+
+   for(const auto& [symbol_id, meta] : sstable->file_metadata) {
+      for(const BlockMeta& bmeta : meta.block_data) {
+
+         Block& block = sstable->blocks[bmeta.block_id];
+         block.elements = bmeta.elements;
+
+         auto block_dods = std::span(dods).first(block.elements);
+         auto block_vol_deltas = std::span(vol_deltas).first(block.elements);
+
+         BitReader ts_reader {std::span<const uint8_t>(bytes).subspan(bmeta.ts_offset, bmeta.ts_size)};
+         compression::read_ts_price_vol(ts_reader, block_dods);
+         compression::decode_ts_price(block_dods, std::span(block.ts).first(block.elements));
+
+         BitReader price_reader {std::span<const uint8_t>(bytes).subspan(bmeta.price_offset, bmeta.price_size)};
+         compression::read_ts_price_vol(price_reader, block_dods);
+         compression::decode_ts_price(block_dods, std::span(block.price).first(block.elements));
+
+         BitReader vol_reader {std::span<const uint8_t>(bytes).subspan(bmeta.vol_offset, bmeta.vol_size)};
+         compression::read_vol(vol_reader, block_vol_deltas);
+         compression::decode_vol(block_vol_deltas, std::span(block.vol).first(block.elements));
+      }
+   }
+
+   return sstable;
+
+}
+
+
 
 
 

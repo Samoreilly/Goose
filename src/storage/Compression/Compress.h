@@ -1,6 +1,8 @@
 #pragma once
 
 #include <span>
+#include <memory>
+#include <filesystem>
 
 #include "../SSTable/SSTable.h"
 #include "../Layout/Storage.h"
@@ -138,6 +140,9 @@ namespace compression {
 
     //returns index from file named "file_path"
     std::unordered_map<uint64_t, FileMetadata> get_index(std::filesystem::path file_path);
+
+    //decodes file named file_path back into an sstable, index and all blocks
+    std::unique_ptr<SSTable> load_sstable(std::filesystem::path file_path);
 
 
 }
