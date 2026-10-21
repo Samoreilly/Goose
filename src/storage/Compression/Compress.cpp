@@ -8,6 +8,7 @@
 #include <span>
 #include <array>
 #include <print>
+#include <mutex>
 #include <cstring>
 #include <fstream>
 #include <fstream>
@@ -19,10 +20,9 @@
 namespace fs = std::filesystem;
 
 void compression::compress(Storage& storage, SSTable *sstable) {
-
-   //only the flusher calls this so the counter is safe to bump
-   const size_t file_number = storage.file_counter++;
-
+ 
+  const size_t file_number = storage.file_counter++;
+   
    //used to calc offsets as we go
    size_t base_offset {0};
 
@@ -133,6 +133,7 @@ Block compression::decode(Storage& storage, SSTable* sstable, uint64_t symbol_id
          break;
       }
    }
+
    if(!bmeta) return block;
 
    block.elements = bmeta->elements;
@@ -164,7 +165,6 @@ Block compression::decode(Storage& storage, SSTable* sstable, uint64_t symbol_id
    compression::decode_vol(vol_deltas, std::span(block.vol).first(block.elements));
 
    return block;
-
 }
 
 

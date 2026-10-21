@@ -12,6 +12,7 @@ add_executable(
     src/storage/BackgroundWork.cpp
     src/storage/Compression/Compress.cpp
     src/storage/Compression/CompressionMethods.cpp
+    src/storage/Compaction/Compaction.cpp
 )
 
 target_compile_features(goose PRIVATE cxx_std_23)

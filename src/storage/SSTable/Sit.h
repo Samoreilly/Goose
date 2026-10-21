@@ -21,8 +21,6 @@ class Sit {
 
     Sit() = delete;
 
-    //moves sorted chunk data to columnar arrays (storage.mu held by build())
-    void create_blocks(std::unique_ptr<SSTable>& sstable, const std::vector<ChunkSort>& m);
     void print_blocks(SSTable& storage);
     
     //calculates how much blocks are needed - used for blocks.reserve()
@@ -36,6 +34,9 @@ class Sit {
     }
 
 public:
+
+    //moves sorted chunk data to columnar arrays (storage.mu held by build())
+    static void create_blocks(std::unique_ptr<SSTable>& sstable, const std::vector<ChunkSort>& m);
 
     Sit(Storage& storage, std::vector<ChunkSort>&& sorted_chunks, std::vector<SortMetadata>&& counts, uint32_t n) {
         

@@ -26,7 +26,16 @@ class Compaction {
    std::thread comp;
 
    void search();
+
+   /*
+   compact() notes
+
+   Symbol_id's that dont exist in both files will be appended to the end of blocks,
+   those that do exist in both will be merged.
+   SSTable index will be updated throughout the compaction
+   */
    void compact(const std::vector<std::pair<std::string, std::string>> candidates);
+
    bool evaluate(const auto& cand_one, const auto& cand_two) const;
 
 public:

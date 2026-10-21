@@ -7,6 +7,7 @@
 #include <string_view>
 #include <charconv>
 #include <print>
+#include <atomic>
 
 #include "../SSTable/SSTable.h"
 
@@ -20,8 +21,7 @@ public:
     std::shared_mutex mu;
 
     //sstable file counter
-    //only the flusher creates files so this doesnt need to be atomic
-    size_t file_counter {0};
+    std::atomic<size_t> file_counter {0};
     std::string folder_name = "gdb/goose/";
 
     Storage() {
