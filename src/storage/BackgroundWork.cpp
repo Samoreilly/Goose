@@ -18,7 +18,6 @@ uint32_t copy_chunks(MemTable& mem, std::vector<SortMetadata>& counts) {
 
    std::unordered_set<std::uint32_t> n_symbols;
 
-
    for(const auto& ticker : mem.buf) {
       const auto s_id = ticker.symbol_id;
       counts[s_id].sorted = ticker.sorted;
@@ -37,8 +36,8 @@ uint32_t copy_chunks(MemTable& mem, std::vector<SortMetadata>& counts) {
 }
 
 void cleanup_memtable(MemTable& mem) {
+   
    //locks
-
    std::unique_lock<std::mutex> lk(mem.mu);
  
     while(true) {
@@ -65,12 +64,17 @@ void cleanup_memtable(MemTable& mem) {
       //or to flush leftovers in buffer from 5s timeout
       if(mem.total_ticks > 0) { 
          std::vector<SortMetadata> counts(mem.buf.size(), SortMetadata{});
-
+        
          uint32_t n_symbols = copy_chunks(mem, counts);
          mem.reset_memtable();
          lk.unlock();
+       
          Sit{mem.storage, std::move(mem.sorted), std::move(counts), n_symbols};
          lk.lock();
+     
+         //signify compaction thread
+         mem.storage.flag.store(1, std::memory_order_release);
+         mem.storage.flag.notify_one();
       }
 
       //drains unflushed rows before exiting as stop may arrive at any time,

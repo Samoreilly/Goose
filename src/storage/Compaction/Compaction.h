@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <thread>
 #include <unordered_set>
 
@@ -18,13 +19,15 @@ If there min/max values overlap
 */
 
 #define MAX_COMPACTION_FILE_SIZE 64'000'000
+#define MAX_COMPACTIONS_PER_COMPACTIONS 5
 
 class Compaction {
 
    Storage& storage;
 
-   std::thread comp;
+   std::atomic<bool> stop {false};
 
+   std::thread comp;
    void search();
 
    /*
@@ -41,6 +44,13 @@ class Compaction {
 public:
 
    Compaction(Storage& s) : storage(s) {}
+
+   ~Compaction() {
+      stop = true;
+      storage.flag.store(1, std::memory_order_release);
+      storage.flag.notify_one();
+      comp.join();
+   }
 
    void start();
 

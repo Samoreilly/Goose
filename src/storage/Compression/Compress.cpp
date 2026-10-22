@@ -19,7 +19,7 @@
 
 namespace fs = std::filesystem;
 
-void compression::compress(Storage& storage, SSTable *sstable) {
+bool compression::compress(Storage& storage, SSTable *sstable) {
  
   const size_t file_number = storage.file_counter++;
    
@@ -86,7 +86,7 @@ void compression::compress(Storage& storage, SSTable *sstable) {
    int fd = open(tmp_path.c_str(), O_CREAT | O_TRUNC | O_WRONLY, 0644);
    if(fd == -1) {
       std::println("Failed to open {}", tmp_path);
-      return;
+      return false;
    }
 
    size_t written {0};
@@ -96,18 +96,19 @@ void compression::compress(Storage& storage, SSTable *sstable) {
          if(errno == EINTR) continue;
          std::println("Failed to write bytes to {}", tmp_path);
          close(fd);
-         return;
+         return false;
       }
       written += n;
    }
 
    if(fsync(fd) != 0 || close(fd) != 0) {
       std::println("Failed to sync {}", tmp_path);
-      return;
+      return false;
    }
 
    fs::rename(tmp_path, file_path);
 
+   return true;
 }
 
 Block compression::decode(Storage& storage, SSTable* sstable, uint64_t symbol_id, uint64_t block_id) {

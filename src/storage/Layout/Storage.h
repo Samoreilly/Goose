@@ -1,5 +1,6 @@
 #pragma once
 
+#include <condition_variable>
 #include <memory>
 #include <shared_mutex>
 #include <filesystem>
@@ -8,6 +9,7 @@
 #include <charconv>
 #include <print>
 #include <atomic>
+#include <semaphore>
 
 #include "../SSTable/SSTable.h"
 
@@ -19,6 +21,8 @@ public:
     //search backwards to find data
     std::vector<std::unique_ptr<SSTable>> sstables;
     std::shared_mutex mu;
+
+    std::atomic<int> flag{0};
 
     //sstable file counter
     std::atomic<size_t> file_counter {0};

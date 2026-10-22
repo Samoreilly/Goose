@@ -8,7 +8,6 @@ struct SortMetadata {
     bool sorted;
 };
 
-
 /*
 This will handle memtable clean up for now
 */

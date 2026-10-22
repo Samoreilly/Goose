@@ -17,7 +17,7 @@ namespace compression {
 
 
     //pointer to element in Storages SSTables vector
-    void compress(Storage& storage, SSTable* sstable);
+    bool compress(Storage& storage, SSTable* sstable);
     
     
     /*
