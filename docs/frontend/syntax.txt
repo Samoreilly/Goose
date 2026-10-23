@@ -1,0 +1,19 @@
+
+
+Similar to SQL
+
+Syntax:
+
+    Get - Return data for a set of tickers
+
+
+1. GET * MSFT BETWEEN 30-01-2005..10-6-2026
+Desc: Returns data for Microsoft between specificed dates inclusively
+
+2. GET * MSFT, APPL BETWEEN 30-01-2005..10-6-2026
+Desc: Returns data for Microsoft and Apple between date
+Rules: Dates must exist for both stocks
+
+
+3. GET * MSFT, APPL BETWEEN 30-01-2005..10-6-2026, 02-09-2013..21-04-2017
+Desc: Returns data for Microsoft and Apple between dates inclusively

@@ -8,16 +8,16 @@
 #include <span>
 #include <concepts>
 
-#include "Ingestion.h"
-#include "wal/Wal.h"
-#include "dsa/MemTable.h"
-#include "dsa/MovingAverage.h"
-#include "wal/WriteStaleWal.h"
-#include "storage/SSTable/SSTable.h"
-#include "storage/SSTable/Sit.h"
-#include "storage/Layout/Storage.h"
-#include "storage/Compression/Compress.h"
-#include "storage/Compaction/Compaction.h"
+#include "engine/Ingestion.h"
+#include "engine/wal/Wal.h"
+#include "engine/dsa/MemTable.h"
+#include "engine/dsa/MovingAverage.h"
+#include "engine/wal/WriteStaleWal.h"
+#include "engine/storage/SSTable/SSTable.h"
+#include "engine/storage/SSTable/Sit.h"
+#include "engine/storage/Layout/Storage.h"
+#include "engine/storage/Compression/Compress.h"
+#include "engine/storage/Compaction/Compaction.h"
 
 int main() {
    std::println("GooseTSDB started");

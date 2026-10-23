@@ -6,13 +6,13 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 add_executable(
     goose
     src/main.cpp
-    src/wal/Wal.cpp
-    src/dsa/MemTable.cpp
-    src/storage/SSTable/Sit.cpp
-    src/storage/BackgroundWork.cpp
-    src/storage/Compression/Compress.cpp
-    src/storage/Compression/CompressionMethods.cpp
-    src/storage/Compaction/Compaction.cpp
+    src/engine/wal/Wal.cpp
+    src/engine/dsa/MemTable.cpp
+    src/engine/storage/SSTable/Sit.cpp
+    src/engine/storage/BackgroundWork.cpp
+    src/engine/storage/Compression/Compress.cpp
+    src/engine/storage/Compression/CompressionMethods.cpp
+    src/engine/storage/Compaction/Compaction.cpp
 )
 
 target_compile_features(goose PRIVATE cxx_std_23)

@@ -28,7 +28,6 @@ public:
     //so it's customisable
     const std::filesystem::path file_path{wal.folder_name}; 
 
-
     void move_wal() {
         
         if(!std::filesystem::exists(file_path)) {
@@ -41,16 +40,14 @@ public:
             auto file_name_wext = entry.path().filename().native();
             
             //gives the strings name excluding the extension
-            std::string_view file_name = 
-                std::string_view(file_name_wext).substr(0, file_name_wext.length() - 4);
+            std::string_view file_name = entry.path().filename().stem().native();
 
             size_t file_number {0}; 
             std::ignore = std::from_chars(file_name.data(), file_name.data() + file_name.size(), file_number);
 
             //If true, it is not in use
             if(file_number < wal.file_counter) {
-                //move to SSTABLE
-            }
+           }
 
         }
 

@@ -1,5 +1,6 @@
 
 #include <chrono>
+#include <cstdlib>
 #include <print>
 #include "Wal.h"
 #include <filesystem>
@@ -16,21 +17,24 @@
 void Wal::append(const Tick& data) {
 
    const size_t S = sizeof(Tick);
-   uint8_t* p = buffer + used;
-   
+  
    if(used + 4 + S > BUFFER_SIZE_B) {
       if(!flush()) {
-         std::println("Flush failed");
+         std::println(std::cerr, "Flush failed. Terminating to prevent further data loss");
+         std::exit(EXIT_FAILURE);
       }
 
       std::println("Clearing buffer and writing to disk");
    }
 
-   memcpy(p + 4, &data, S);
-
+   uint8_t* p = buffer + used;
+ 
    //on replay, compare stored crc with the recomputed crc of the payload
-   const uint32_t crc_payload = crc32(crc, p + 4, S);
+   const uint32_t crc_payload = crc32(crc, reinterpret_cast<const uint8_t*>(&data), S);
    memcpy(p, &crc_payload, 4);
+   p += 4;
+
+   memcpy(p, &data, S);
 
    used += 4 + S;
 
