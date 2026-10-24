@@ -15,6 +15,10 @@ void MemTable::append(Tick& t) {
    //Lock so background cleanup thread doesn't interfere
    std::unique_lock<std::mutex> lk(mu);
 
+   //append to WAL first for durability incase crash happens
+   //done under mu so the WAL file and memtable always hold the same ticks when rotated
+   storage.wal.append(t);
+
    TickerBuffer& slot = get(t.symbol_id);
  
    //if no chunks or current chunk is full. create new chunk

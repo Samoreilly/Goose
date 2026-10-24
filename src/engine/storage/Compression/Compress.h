@@ -109,10 +109,9 @@ namespace compression {
         }
     };
 
-
     void encode_vol(std::span<const uint32_t> data, std::vector<int32_t>& arr, size_t& used);
     void encode_ts_price(std::span<const uint64_t> data, std::vector<int64_t>& arr, size_t& used);
-    
+
     void write_ts_price_vol(BitWriter& writer, const std::span<const int64_t> dods);
     void write_vol(BitWriter& writer, const std::span<const int32_t> dods);
 

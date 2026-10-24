@@ -3,6 +3,7 @@
 #include <mutex>
 #include <print>
 #include <unordered_set>
+#include <iostream>
 
 #include "BackgroundWork.h"
 #include "SSTable/Sit.h"
@@ -63,13 +64,29 @@ void cleanup_memtable(MemTable& mem) {
       //this comparison will only be triggered once total_ticks == max_ticks
       //or to flush leftovers in buffer from 5s timeout
       if(mem.total_ticks > 0) { 
+
+         if(!mem.storage.wal.rotate()) {
+            std::println(std::cerr, "WAL rotate failed. Terminating to prevent further data loss");
+            std::exit(EXIT_FAILURE);
+         }
+
          std::vector<SortMetadata> counts(mem.buf.size(), SortMetadata{});
         
          uint32_t n_symbols = copy_chunks(mem, counts);
          mem.reset_memtable();
          lk.unlock();
        
-         Sit{mem.storage, std::move(mem.sorted), std::move(counts), n_symbols};
+         bool successful_compression {false};
+         Sit{mem.storage, std::move(mem.sorted), std::move(counts), n_symbols, successful_compression};
+        
+         if(!successful_compression) {
+            std::println(std::cerr, ".goose Compression failed on File: {}", mem.storage.file_counter - 1);
+            std::exit(EXIT_FAILURE);
+         }
+         
+         //removes old WAL files less than current wal.file_counter
+         mem.storage.wal.remove_stale();
+
          lk.lock();
      
          //signify compaction thread

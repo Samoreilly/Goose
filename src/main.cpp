@@ -12,7 +12,6 @@
 #include "engine/wal/Wal.h"
 #include "engine/dsa/MemTable.h"
 #include "engine/dsa/MovingAverage.h"
-#include "engine/wal/WriteStaleWal.h"
 #include "engine/storage/SSTable/SSTable.h"
 #include "engine/storage/SSTable/Sit.h"
 #include "engine/storage/Layout/Storage.h"
@@ -37,8 +36,9 @@ int main() {
 
    auto dur = std::chrono::duration<double>(0);
 
+   Wal wal;
    //will contain global indexes, will become std vector<SSTable>
-   Storage storage;
+   Storage storage{wal};
    Compaction compaction(storage);
    compaction.start();
 

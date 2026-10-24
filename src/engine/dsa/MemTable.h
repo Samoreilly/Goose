@@ -97,8 +97,7 @@ public:
         }
     }
 
-    std::vector<ChunkSort> sorted;
-    
+    std::vector<ChunkSort> sorted;    
     std::condition_variable cond_var;
     
     std::mutex mu;

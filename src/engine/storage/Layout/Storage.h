@@ -12,10 +12,13 @@
 #include <semaphore>
 
 #include "../SSTable/SSTable.h"
+#include "../../wal/Wal.h"
 
 class Storage {
 
 public:
+
+    Wal& wal;
 
     //.back() is most recent SSTable
     //search backwards to find data
@@ -26,9 +29,9 @@ public:
 
     //sstable file counter
     std::atomic<size_t> file_counter {0};
-    std::string folder_name = "gdb/goose/";
+    std::string goose_folder_name = "gdb/goose/";
 
-    Storage() {
+    Storage(Wal& w) : wal(w) {
         //arbitrary, will change later
         sstables.reserve(1000);
         load_file_counter();
@@ -38,7 +41,7 @@ public:
     //so old files dont get overwritten after a restart
     void load_file_counter() {
 
-        const std::filesystem::path file_path{folder_name};
+        const std::filesystem::path file_path{goose_folder_name};
 
         if(!std::filesystem::exists(file_path)) {
             std::filesystem::create_directories(file_path);
@@ -60,13 +63,19 @@ public:
             if(ec != std::errc{}) continue;
 
             if(file_number >= file_counter) {
-                file_counter = file_number + 1;
+                file_counter = file_number;
             }
 
         }
 
+        file_counter++;
     }
 
 
 };
+
+
+
+
+
 

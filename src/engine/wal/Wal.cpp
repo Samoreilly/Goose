@@ -11,10 +11,13 @@
 #include <unistd.h>
 
 
+namespace fs = std::filesystem;
 
 //   4     24
 // [crc][payload]
 void Wal::append(const Tick& data) {
+
+
 
    const size_t S = sizeof(Tick);
   
@@ -24,7 +27,7 @@ void Wal::append(const Tick& data) {
          std::exit(EXIT_FAILURE);
       }
 
-      std::println("Clearing buffer and writing to disk");
+      //std::println("Clearing buffer and writing to disk");
    }
 
    uint8_t* p = buffer + used;
@@ -38,25 +41,42 @@ void Wal::append(const Tick& data) {
 
    used += 4 + S;
 
-   std::println("Added to buffer");
+   //std::println("Added to buffer");
 }
 
+void Wal::remove_stale() {
+
+   for(const auto& entry : fs::directory_iterator(folder_name)) {
+      
+      auto name = entry.path().stem().native(); 
+   
+      size_t file_name {0};
+      std::ignore = std::from_chars(name.data(), name.data() + name.size(), file_name);
+
+      if(file_name < file_counter) {
+         fs::remove(entry);
+      }
+   }
+
+
+}
+
+bool Wal::rotate() {
+   if(!flush()) return false;
+   if(fd == -1) return true;
+
+   int rc = close(fd);
+   fd = -1;
+   
+   current_size = 0;
+   file_counter++;
+   
+   return rc == 0;
+}
 
 bool Wal::flush() {
 
    if(used == 0) return true;
-
-   //If [file_counter].wal has no space, flush and
-   if(fd != -1 && current_size > 0 && current_size + used > MAX_FILE_SIZE_B) {
-      if(fsync(fd) != 0) return false;
-
-      int rc = close(fd);
-      fd = -1;
-      current_size = 0;
-      file_counter++;
-      
-      if(rc != 0) return false;
-   }
 
    std::filesystem::path file_path = folder_name + std::to_string(file_counter) + ".wal";  
 
@@ -85,7 +105,7 @@ bool Wal::flush() {
    current_size += used;
    used = 0;
 
-   std::println("Flushed");
+   //std::println("Flushed");
    return true;
 }
 
@@ -127,6 +147,34 @@ bool Wal::fsync_dir(std::filesystem::path file_path) {
     close(dfd);
     return ok;
 }
+
+void Wal::load_file_counter() {
+
+   size_t file_counter {0};
+
+   for(const auto& entry : fs::directory_iterator(folder_name)) { 
+      
+      //gives the files name excluding the extension
+      auto file_name_wext = entry.path().stem().native();
+      std::string_view file_name {file_name_wext};
+
+      size_t file_number {0};
+      //int to string
+      auto [ptr, ec] = std::from_chars(file_name.data(), file_name.data() + file_name.size(), file_number);
+      
+      //not one of our files
+      if(ec != std::errc{}) continue;
+
+      if(file_number >= file_counter) {
+         file_counter = file_number;
+      }
+   }
+
+   this->file_counter = file_counter + 1; 
+
+
+}
+
 
 
 

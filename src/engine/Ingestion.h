@@ -6,7 +6,6 @@
 #include <assert.h>
 
 #include "dsa/MemTable.h"
-#include "wal/Wal.h"
 #include "dsa/RingBuffer.h"
 #include "helpers/Convert.h"
 
@@ -17,7 +16,6 @@ Ingestor responsible for orchestration && ingestion threads
 template<size_t SIZE>
 class Ingestion {
 
-    Wal& wal;
     MemTable& mem_table;
     std::thread producers;
     std::thread consumers;
@@ -30,7 +28,7 @@ class Ingestion {
 
 public:
 
-    Ingestion(Wal& w, MemTable& mem) : wal(w), mem_table(mem) {}
+    Ingestion(MemTable& mem) : mem_table(mem) {}
 
     void start();
 };
@@ -73,8 +71,7 @@ void Ingestion<SIZE>::consumer() {
         uint32_t symbol_id = it->second;
 
         Tick tick{data.ts, data.price, data.vol, symbol_id};
-        //append to WAL first for durability incase crash happens
-        wal.append(tick);
+        //also appends to the WAL
         mem_table.append(tick);
     }
 }

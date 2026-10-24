@@ -38,7 +38,7 @@ public:
     //moves sorted chunk data to columnar arrays (storage.mu held by build())
     static void create_blocks(std::unique_ptr<SSTable>& sstable, const std::vector<ChunkSort>& m);
 
-    Sit(Storage& storage, std::vector<ChunkSort>&& sorted_chunks, std::vector<SortMetadata>&& counts, uint32_t n) {
+    Sit(Storage& storage, std::vector<ChunkSort>&& sorted_chunks, std::vector<SortMetadata>&& counts, uint32_t n, bool& successful_compression) {
         
         if(sorted_chunks.empty()) return;
 
@@ -50,7 +50,7 @@ public:
         auto* sstable = build_sstable(storage, sorted_chunks, counts, n);
         
         //compression stage
-        compression::compress(storage, sstable);
+        successful_compression = compression::compress(storage, sstable);
     }
 
     //builds and adds SSTable to global SSTable vector and return reference

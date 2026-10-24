@@ -80,8 +80,8 @@ bool compression::compress(Storage& storage, SSTable *sstable) {
    //crash safety
    //written to .tmp first then renamed, so a crash mid write never leaves a half written .goose file
    //this could corrupt data
-   const std::string tmp_path = std::format("{}{:06}.tmp", storage.folder_name, file_number);
-   const std::string file_path = std::format("{}{:06}.goose", storage.folder_name, file_number);
+   const std::string tmp_path = std::format("{}{:06}.tmp", storage.goose_folder_name, file_number);
+   const std::string file_path = std::format("{}{:06}.goose", storage.goose_folder_name, file_number);
 
    int fd = open(tmp_path.c_str(), O_CREAT | O_TRUNC | O_WRONLY, 0644);
    if(fd == -1) {
@@ -107,6 +107,7 @@ bool compression::compress(Storage& storage, SSTable *sstable) {
    }
 
    fs::rename(tmp_path, file_path);
+   fsync(fd);
 
    return true;
 }
@@ -118,7 +119,7 @@ Block compression::decode(Storage& storage, SSTable* sstable, uint64_t symbol_id
    auto s_data = sstable->file_metadata.find(symbol_id);
    if(s_data == sstable->file_metadata.end()) return block;
 
-   const std::string file_name = std::format("{}{:06}.goose", storage.folder_name, s_data->second.file_number);
+   const std::string file_name = std::format("{}{:06}.goose", storage.goose_folder_name, s_data->second.file_number);
    std::ifstream file(file_name, std::ios::binary);
 
    if(!file) {
@@ -221,7 +222,7 @@ void compression::encode_index(std::vector<uint64_t>& out, const std::unordered_
 // BLOCK 1 | BLOCK 2 | INDEX | 8 byte integer storing offset to index
 std::unordered_map<uint64_t, FileMetadata> compression::decode_index(Storage& storage, const uint64_t file_counter) {
 
-   const std::string file_path = std::format("{}{:06}.goose", storage.folder_name, file_counter);
+   const std::string file_path = std::format("{}{:06}.goose", storage.goose_folder_name, file_counter);
    int fd = open(file_path.c_str(), O_RDONLY, 0644);
 
    uint64_t file_size {0};

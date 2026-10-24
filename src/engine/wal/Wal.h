@@ -10,11 +10,12 @@
 #include <filesystem>
 #include <thread>
 #include <mutex>
+#include <print>
 
 #include "../DataTypes.h"
 
 //NOTE: 8mb arbitrary value, will tune it later
-#define MAX_FILE_SIZE_B 4000000 
+
 #define BUFFER_SIZE_B 1000000 //1mb for staging buffer
 
 /*
@@ -40,19 +41,41 @@ class Wal {
     bool write_bytes(int fd, uint8_t buffer[], size_t count);
     bool fsync_dir(std::filesystem::path file_path);
 
+    void load_file_counter();
+
 public:
 
-    Wal() {}
+    Wal() {
+        if(!std::filesystem::is_directory(folder_name)) {
+            std::filesystem::create_directories(folder_name);
+            std::println("Created directory: gdb/wal/");
+        }
+
+        load_file_counter();
+    }
+
     ~Wal() {
         //flush remaining data in buffer
         flush();
     }
+
     size_t file_counter {0};
     std::string folder_name = "gdb/wal/";
  
     void append(const Tick& data);
     bool flush();
+    bool rotate();
+
+    void remove_stale();
+
 
 };
+
+
+
+
+
+
+
 
 

@@ -28,13 +28,12 @@ void Compaction::search() {
       
       if(stop) return;
 
-      std::println("here2");
       std::vector<std::pair<std::string, std::string>> candidates;
       candidates.reserve(storage.file_counter);
 
       std::unordered_set<std::string> used;
 
-      const fs::path file_path{storage.folder_name}; 
+      const fs::path file_path{storage.goose_folder_name}; 
 
       if(!fs::exists(file_path)) {
          std::println("Created gdb");
