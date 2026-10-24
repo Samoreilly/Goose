@@ -46,6 +46,9 @@ void Wal::append(const Tick& data) {
 
 void Wal::remove_stale() {
 
+   //old WAL files are still the only durable copy of the replayed ticks
+   if(replaying) return;
+
    for(const auto& entry : fs::directory_iterator(folder_name)) {
       
       auto name = entry.path().stem().native(); 

@@ -13,6 +13,7 @@ add_executable(
     src/engine/storage/Compression/Compress.cpp
     src/engine/storage/Compression/CompressionMethods.cpp
     src/engine/storage/Compaction/Compaction.cpp
+    src/engine/wal/Replay.cpp
 )
 
 target_compile_features(goose PRIVATE cxx_std_23)

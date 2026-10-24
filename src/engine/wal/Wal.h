@@ -11,6 +11,7 @@
 #include <thread>
 #include <mutex>
 #include <print>
+#include <atomic>
 
 #include "../DataTypes.h"
 
@@ -61,6 +62,10 @@ public:
 
     size_t file_counter {0};
     std::string folder_name = "gdb/wal/";
+
+    //true while old WAL files are being replayed on startup
+    //stops remove_stale() deleting them before every replayed tick is in an SSTable
+    std::atomic<bool> replaying {false};
  
     void append(const Tick& data);
     bool flush();

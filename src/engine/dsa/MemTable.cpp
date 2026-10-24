@@ -10,14 +10,15 @@
 
 
 
-void MemTable::append(Tick& t) {
+void MemTable::append(Tick& t, bool log_wal) {
    //static uint32_t c {0};
    //Lock so background cleanup thread doesn't interfere
    std::unique_lock<std::mutex> lk(mu);
 
    //append to WAL first for durability incase crash happens
    //done under mu so the WAL file and memtable always hold the same ticks when rotated
-   storage.wal.append(t);
+   //replayed ticks are skipped so they don't get duplicated into a new WAL file
+   if(log_wal) storage.wal.append(t);
 
    TickerBuffer& slot = get(t.symbol_id);
  

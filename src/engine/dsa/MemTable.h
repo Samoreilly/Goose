@@ -116,7 +116,8 @@ public:
     }
 
 
-    void append(Tick& t);
+    //log_wal is false when replaying ticks that are already in a WAL file
+    void append(Tick& t, bool log_wal = true);
     inline TickerBuffer& get(uint32_t symbol_id);
      
     //calculated during sort()

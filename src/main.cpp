@@ -17,6 +17,7 @@
 #include "engine/storage/Layout/Storage.h"
 #include "engine/storage/Compression/Compress.h"
 #include "engine/storage/Compaction/Compaction.h"
+#include "engine/wal/Replay.h"
 
 int main() {
    std::println("GooseTSDB started");
@@ -37,10 +38,22 @@ int main() {
    auto dur = std::chrono::duration<double>(0);
 
    Wal wal;
+   
    //will contain global indexes, will become std vector<SSTable>
    Storage storage{wal};
    Compaction compaction(storage);
    compaction.start();
+
+   //replays old WAL files left behind by a crash
+   //they are only removed once every replayed tick has been flushed to an SSTable
+   wal.replaying = true;
+   {
+      MemTable replay_table{storage};
+      Replay replay;
+      replay.stream(replay_table);
+   }//destructor drains the memtable into SSTables
+   wal.replaying = false;
+   wal.remove_stale();
 
    for(int i {0};i < 5;i++) {
       std::vector<Tick> ticks;
