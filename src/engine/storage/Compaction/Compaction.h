@@ -36,6 +36,7 @@ class Compaction {
    Symbol_id's that dont exist in both files will be appended to the end of blocks,
    those that do exist in both will be merged.
    SSTable index will be updated throughout the compaction
+   Both files are merged into a new .goose file, then both originals are removed
    */
    void compact(const std::vector<std::pair<std::string, std::string>> candidates);
 

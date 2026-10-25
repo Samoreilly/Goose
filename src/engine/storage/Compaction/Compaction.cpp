@@ -41,36 +41,46 @@ void Compaction::search() {
       }
 
       for(const auto& dir : fs::directory_iterator(file_path)) {
+         if(stop) return;
+
          const auto& path = dir.path();
-      
+
          if(path.extension() != ".goose") continue;
 
-         //5 compaction max 
+         //5 compaction max
          if(candidates.size() == MAX_COMPACTIONS_PER_COMPACTIONS) break;
 
+         const std::string one_path = path.stem().native();
+         if(used.contains(one_path)) continue;
+
+         //non throwing, a listed file can be removed before it is read
+         std::error_code ec;
+         const auto one_size = dir.file_size(ec);
+         if(ec) continue;
+
          auto cand_one = compression::get_index(path);
+         if(cand_one.empty()) continue;
 
          for(const auto& pot_cand : fs::directory_iterator(file_path)) {
-            const std::string one_path = dir.path().stem().native();
+            if(stop) return;
+
             const std::string two_path = pot_cand.path().stem().native();
 
+            //cheap checks first, get_index reads the whole index from disk
             if(pot_cand.path().extension() != ".goose") continue;
-            if((pot_cand.file_size() + dir.file_size()) >= MAX_COMPACTION_FILE_SIZE) {
-               continue;
-            }
+            if(one_path == two_path || used.contains(two_path)) continue;
 
-            //not same files
-            if(one_path != two_path) {
+            const auto two_size = pot_cand.file_size(ec);
+            if(ec || (one_size + two_size) >= MAX_COMPACTION_FILE_SIZE) continue;
 
-               auto cand_two = compression::get_index(pot_cand);
-               bool merge = evaluate(cand_one, cand_two);
+            auto cand_two = compression::get_index(pot_cand);
+            if(cand_two.empty() || !evaluate(cand_one, cand_two)) continue;
 
-               if(!merge || used.contains(one_path) || used.contains(two_path)) continue;
+            used.insert({one_path, two_path});
+            candidates.emplace_back(path.native(), pot_cand.path().native());
 
-               used.insert({one_path, two_path});
-               candidates.emplace_back(dir.path().native(), pot_cand.path().native());
-            }
-
+            //each file is only paired once per pass
+            break;
          }
       }
 
@@ -88,8 +98,11 @@ void Compaction::compact(const std::vector<std::pair<std::string, std::string>> 
 
    //both files are merged into a new sstable
    for(const auto& cand : candidates) {
-      auto sstable_one = compression::load_sstable(cand.first); 
+      auto sstable_one = compression::load_sstable(cand.first);
       auto sstable_two = compression::load_sstable(cand.second);
+
+      //either file may have been removed or unreadable since the scan
+      if(!sstable_one || !sstable_two) continue;
 
       //every row from both files, create_blocks rebuilds the blocks and index
       std::vector<ChunkSort> rows;
@@ -120,12 +133,15 @@ void Compaction::compact(const std::vector<std::pair<std::string, std::string>> 
       bool success = compression::compress(storage, merged.get());
 
       if(!success) {
-         std::println("Failed to compact {} into {}", cand.second, cand.first);
+         std::println("Failed to compact {} and {}", cand.first, cand.second);
          continue;
       }
-      
-      fs::remove(fs::path(cand.second));
-      std::println("Compacted {} into {}", cand.second, cand.first);
+
+      //merged rows live in a new file, both originals are now duplicates
+      std::error_code ec;
+      fs::remove(fs::path(cand.first), ec);
+      fs::remove(fs::path(cand.second), ec);
+      std::println("Compacted {} and {}", cand.first, cand.second);
    
    }
 

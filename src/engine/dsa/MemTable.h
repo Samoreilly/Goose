@@ -68,8 +68,8 @@ public:
     Storage& storage;
 
     MemTable(Storage& s) : storage(s) {
-        cleanup_thread = std::thread(cleanup_memtable, std::ref(*this));
         init_buffer();
+        cleanup_thread = std::thread(cleanup_memtable, std::ref(*this));
     }
 
     ~MemTable() {

@@ -7,7 +7,7 @@
 #include "Lexer.h"
 #include "../Keywords.h"
 
-Query Lexer::lex(const std::string& query) {
+Query Lexer::parse(const std::string& query) {
 
     Query stream{};
 

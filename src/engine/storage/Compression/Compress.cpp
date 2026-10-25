@@ -256,23 +256,30 @@ std::unordered_map<uint64_t, FileMetadata> compression::decode_index(Storage& st
 
 std::unordered_map<uint64_t, FileMetadata> compression::get_index(std::filesystem::path file_path) {
 
+   std::unordered_map<uint64_t, FileMetadata> metadata;
+
+   //file may have been compacted away since it was listed, empty index means unreadable
    int fd = open(file_path.c_str(), O_RDONLY, 0644);
+   if(fd == -1) return metadata;
 
-   uint64_t file_size {0};
    struct stat st;
-
-   if(!fstat(fd, &st)) {
-      file_size = st.st_size;
+   if(fstat(fd, &st) != 0 || st.st_size < 8) {
+      close(fd);
+      return metadata;
    }
+
+   const uint64_t file_size = st.st_size;
 
    uint64_t index_offset {0};
    //reads last 8 bytes of file
-   pread(fd, &index_offset, 8, file_size - 8);
+   if(pread(fd, &index_offset, 8, file_size - 8) != 8 || index_offset > file_size - 8) {
+      close(fd);
+      return metadata;
+   }
 
    const size_t index_size = file_size - 8 - index_offset;
 
    std::vector<uint64_t> in(index_size / 8);
-   std::unordered_map<uint64_t, FileMetadata> metadata;
 
 
    //read full index into buffer
@@ -327,14 +334,17 @@ std::unique_ptr<SSTable> compression::load_sstable(std::filesystem::path file_pa
    //sstable holds a mutex so it cant be returned by value
    auto sstable = std::make_unique<SSTable>();
    sstable->file_metadata = compression::get_index(file_path);
+   if(sstable->file_metadata.empty()) return nullptr;
 
    //whole file is read once, columns are decoded from it
    std::ifstream file(file_path, std::ios::binary);
-   if(!file) {
+   std::error_code ec;
+   const auto size = fs::file_size(file_path, ec);
+   if(!file || ec) {
       std::println("No file found");
-      return sstable;
+      return nullptr;
    }
-   std::vector<uint8_t> bytes(fs::file_size(file_path));
+   std::vector<uint8_t> bytes(size);
    file.read(reinterpret_cast<char*>(bytes.data()), bytes.size());
 
    //block_id indexes into blocks

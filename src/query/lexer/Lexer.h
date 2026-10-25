@@ -27,6 +27,6 @@ public:
     Lexer() {}
 
     //returns an empty Query if the query is invalid
-    Query lex(const std::string& query);
+    Query parse(const std::string& query);
 
 };
