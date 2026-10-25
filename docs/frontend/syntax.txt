@@ -15,5 +15,46 @@ Desc: Returns data for Microsoft and Apple between date
 Rules: Dates must exist for both stocks
 
 
-3. GET * MSFT, APPL BETWEEN 30-01-2005..10-6-2026, 02-09-2013..21-04-2017
+3. GET * MSFT, APPL BETWEEN 30-01-2005..10-06-2026, 02-09-2013..21-04-2017
 Desc: Returns data for Microsoft and Apple between dates inclusively
+
+
+4. GET price, vol MSFT BETWEEN 30-01-2005..10-06-2026
+Desc: Returns only the price and volume columns for Microsoft between dates inclusively
+Rules: Columns can be any of ts, price, vol. * returns all columns
+
+
+5. GET OHLC MSFT BETWEEN 30-01-2005..10-06-2026 EVERY 1d
+Desc: Returns open, high, low, close and volume for Microsoft for every 1 day between dates inclusively
+Rules: Bucket sizes are s (seconds), m (minutes), h (hours), d (days). Buckets with no ticks are skipped
+
+
+6. GET MIN(price), MAX(price), AVG(price), SUM(vol), COUNT MSFT BETWEEN 30-01-2005..10-06-2026
+Desc: Returns the lowest, highest and average price, total volume and number of ticks for Microsoft between dates inclusively
+Rules: Can be combined with EVERY to return one row per bucket
+
+
+(Volume weighted average price)
+7. GET VWAP MSFT, TSLA BETWEEN 30-01-2005..10-06-2026
+Desc: Returns the volume weighted average price (sum(price * vol) / sum(vol)) for Microsoft and Tesla between dates inclusively
+Rules: Can be combined with EVERY to return one row per bucket
+
+
+8. GET LAST MSFT, TSLA
+Desc: Returns the most recent tick for Microsoft and Tesla
+Rules: No BETWEEN needed
+
+
+9. GET * MSFT BETWEEN 30-01-2005..10-06-2026 WHERE price > 400
+Desc: Returns data for Microsoft between dates inclusively where price is greater than 400
+Rules: Supports >, <, >=, <=, = on price and vol. Only one condition per query
+
+
+10. GET * MSFT BETWEEN 30-01-2005..10-06-2026 DESC LIMIT 100
+Desc: Returns the 100 most recent ticks for Microsoft between dates inclusively
+Rules: DESC returns newest first, default is oldest first
+
+
+11. GET MIN(price), MAX(price) MSFT BETWEEN 30-01-2005..10-06-2026 WHERE vol > 1000 EVERY 1h DESC LIMIT 24
+Desc: Returns the lowest and highest price of each hour for the last 24 hours of Microsoft data in the date range, only counting ticks with volume greater than 1000
+Rules: Clauses must be in this order: BETWEEN, WHERE, EVERY, DESC, LIMIT

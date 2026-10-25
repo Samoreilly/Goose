@@ -14,6 +14,7 @@ add_executable(
     src/engine/storage/Compression/CompressionMethods.cpp
     src/engine/storage/Compaction/Compaction.cpp
     src/engine/wal/Replay.cpp
+    src/query/lexer/Lexer.cpp
 )
 
 target_compile_features(goose PRIVATE cxx_std_23)

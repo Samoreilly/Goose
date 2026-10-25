@@ -7,6 +7,7 @@
 #include <vector>
 #include <span>
 #include <concepts>
+#include <string_view>
 
 #include "engine/Ingestion.h"
 #include "engine/wal/Wal.h"
@@ -18,65 +19,74 @@
 #include "engine/storage/Compression/Compress.h"
 #include "engine/storage/Compaction/Compaction.h"
 #include "engine/wal/Replay.h"
+#include "query/lexer/Lexer.h"
 
 int main() {
+
    std::println("GooseTSDB started");
 
-   constexpr int N_TICKS = 50000000;
-   constexpr int N_SYMBOLS = 5000;
+   std::string query = "GET * MSFT BETWEEN 01-12-2002..14-10-2013";
 
-   std::mt19937_64 gen{42};
+   Lexer lexer;
+   lexer.lex(query);
 
-   //creates random symbols
-   std::vector<double> weights(N_SYMBOLS);
-   for(int k {0};k < N_SYMBOLS;k++) {
-      weights[k] = 1.0 / (k + 1);
-   }
-   std::discrete_distribution<uint32_t> symbol(weights.begin(), weights.end());
-   std::uniform_int_distribution<uint64_t> jitter(0, 999);
+   // constexpr int N_TICKS = 50000000;
+   // constexpr int N_SYMBOLS = 5000;
 
-   auto dur = std::chrono::duration<double>(0);
+   // std::mt19937_64 gen{42};
 
-   Wal wal;
-   
-   //will contain global indexes, will become std vector<SSTable>
-   Storage storage{wal};
-   Compaction compaction(storage);
-   compaction.start();
+   // //creates random symbols
+   // std::vector<double> weights(N_SYMBOLS);
+   // for(int k {0};k < N_SYMBOLS;k++) {
+   //    weights[k] = 1.0 / (k + 1);
+   // }
+   // std::discrete_distribution<uint32_t> symbol(weights.begin(), weights.end());
+   // std::uniform_int_distribution<uint64_t> jitter(0, 999);
 
-   //replays old WAL files left behind by a crash
-   //they are only removed once every replayed tick has been flushed to an SSTable
-   wal.replaying = true;
-   {
-      MemTable replay_table{storage};
-      Replay replay;
-      replay.stream(replay_table);
-   }//destructor drains the memtable into SSTables
-   wal.replaying = false;
-   wal.remove_stale();
+   // auto dur = std::chrono::duration<double>(0);
 
-   for(int i {0};i < 5;i++) {
-      std::vector<Tick> ticks;
-      ticks.reserve(N_TICKS);
-      for(int j {0};j < N_TICKS;j++) {
-         ticks.push_back({(uint64_t)(1000000 + j) + jitter(gen), 10000 + jitter(gen), (uint32_t)jitter(gen), symbol(gen)});
-      }
+   // Wal wal;
+   // 
+   // //will contain global indexes, will become std vector<SSTable>
+   // Storage storage{wal};
+   // Compaction compaction(storage);
+   // compaction.start();
 
-      auto start = std::chrono::steady_clock::now();
+   // //replays old WAL files left behind by a crash
+   // //they are only removed once every replayed tick has been flushed to an SSTable
+   // wal.replaying = true;
+   // {
+   //    MemTable replay_table{storage};
+   //    Replay replay;
+   //    replay.stream(replay_table);
+   // }//destructor of MemTable drains the memtable into SSTables via the cleanup_memtable method
 
-      {
-         MemTable mem_table{storage};
 
-         for(auto& tick : ticks) {
-            mem_table.append(tick);
-         }
-      }
+   // wal.replaying = false;
+   // wal.remove_stale();
 
-      auto elapsed = std::chrono::steady_clock::now() - start;
-      std::println("Time taken {}", elapsed);
-      
-      dur += std::chrono::duration<double>(elapsed);
-   }
+   // for(int i {0};i < 5;i++) {
+   //    std::vector<Tick> ticks;
+   //    ticks.reserve(N_TICKS);
+   //    for(int j {0};j < N_TICKS;j++) {
+   //       ticks.push_back({(uint64_t)(1000000 + j) + jitter(gen), 10000 + jitter(gen), (uint32_t)jitter(gen), symbol(gen)});
+   //    }
+
+   //    auto start = std::chrono::steady_clock::now();
+
+   //    {
+   //       MemTable mem_table{storage};
+
+   //       for(auto& tick : ticks) {
+   //          mem_table.append(tick);
+   //       }
+   //    }
+
+   //    auto elapsed = std::chrono::steady_clock::now() - start;
+   //    std::println("Time taken {}", elapsed);
+   //    
+   //    dur += std::chrono::duration<double>(elapsed);
+   // }
 
 
  
