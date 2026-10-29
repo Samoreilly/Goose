@@ -8,6 +8,7 @@
 #include <span>
 #include <concepts>
 #include <string_view>
+#include <ranges>
 
 #include "engine/Ingestion.h"
 #include "engine/wal/Wal.h"
@@ -20,15 +21,11 @@
 #include "engine/storage/Compaction/Compaction.h"
 #include "engine/wal/Replay.h"
 #include "query/lexer/Lexer.h"
+#include "query/QueryEngine.h"
 
 int main() {
 
    std::println("GooseTSDB started");
-
-   // std::string query = "GET * MSFT BETWEEN 01-12-2002..14-10-2013";
-
-   // Lexer lexer;
-   // lexer.lex(query);
 
    constexpr int N_TICKS = 50000000;
    constexpr int N_SYMBOLS = 5000;
@@ -115,7 +112,10 @@ int main() {
       std::uniform_int_distribution<uint64_t> jitter(0, 999);
       std::uniform_int_distribution<uint32_t> symbol(0, 49);
 
-      Storage storage{wal};
+      //reuses the pipeline's Storage, a second Storage has its own file_counter
+      //and hands out the same file numbers as the still running compaction thread
+      //only SSTables flushed by this test are checked
+      const size_t first = storage.sstables.size();
 
       {
          MemTable mem_table{storage};
@@ -129,7 +129,7 @@ int main() {
       size_t blocks {0}, mismatched {0};
 
       //to verify if original blocks match encoded -> decoded blocks
-      for(auto& sstable : storage.sstables) {
+      for(auto& sstable : storage.sstables | std::views::drop(first)) {
          for(auto& [symbol_id, meta] : sstable->file_metadata) {
             for(const BlockMeta& bmeta : meta.block_data) {
 
@@ -158,7 +158,7 @@ int main() {
       //and compares original to read
       size_t indexes {0}, index_mismatched {0};
 
-      for(auto& sstable : storage.sstables) {
+      for(auto& sstable : storage.sstables | std::views::drop(first)) {
 
          if(sstable->file_metadata.empty()) continue;
 

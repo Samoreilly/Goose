@@ -7,7 +7,7 @@
 #include "Lexer.h"
 #include "../Keywords.h"
 
-Query Lexer::parse(const std::string& query) {
+Query Lexer::lex(const std::string& query) {
 
     Query stream{};
 
@@ -24,13 +24,6 @@ Query Lexer::parse(const std::string& query) {
         while(i < size && (std::isspace(query[i]) || query[i] == ',')) i++;
         if(i == size) break;
 
-        //* returns every column
-        if(query[i] == '*') {
-            stream.columns = {"ts", "price", "vol"};
-            i++;
-            continue;
-        }
-
         size_t start {i};
         while(i < size && std::isalnum(query[i])) i++;
 
@@ -39,7 +32,7 @@ Query Lexer::parse(const std::string& query) {
             auto range = handle_timestamp(query, start, i, size);
             if(!range) return {};
 
-            stream.ranges.push_back(*range);
+            stream.range = *range;
             continue;
         }
 
@@ -62,8 +55,6 @@ Query Lexer::parse(const std::string& query) {
                 std::println("{} is not supported yet", word);
                 return {};
             }
-        }else if(word == "ts" || word == "price" || word == "vol") {
-            stream.columns.push_back(std::string(word));
         }else if(std::isalpha(word[0])) {
             stream.symbols.push_back(std::string(word));
         }else {
@@ -74,21 +65,14 @@ Query Lexer::parse(const std::string& query) {
     }
 
 
-    std::print("Columns: ");
-    for(const auto& c : stream.columns) {
-        std::println("{}", c);
-    }
-
     std::print("Symbols");
     for(const auto& s : stream.symbols) {
         std::println("{}", s);
 
     }
 
-    std::print("Ranges");
-    for(const auto& t : stream.ranges) {
-        std::println("Start: {} End: {}", t.start, t.end);
-    }
+    std::print("Range");
+    std::println("Start: {} End: {}", stream.range.start, stream.range.end); 
 
     return stream;
 }

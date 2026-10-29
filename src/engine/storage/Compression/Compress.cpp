@@ -66,11 +66,17 @@ bool compression::compress(Storage& storage, SSTable *sstable) {
          base_offset += writer.out.size(); 
       }
    }
-   
+
    std::vector<uint64_t> out;
 
+   //file summary sits between the blocks and the index, 4 values
+   encode_summary(out, sstable->file_metadata);
+
    //encodes full index at the end of file and 8 byte offset to start of offset
-   encode_index(out, sstable->file_metadata, base_offset);
+   encode_index(out, sstable->file_metadata, base_offset + 4 * 8);
+
+   //last 8 bytes are the offset to the summary, the index offset is before it
+   out.push_back(static_cast<uint64_t>(base_offset));
 
    //all data is fixed size until read
    for(auto& byte : out) {
@@ -106,7 +112,13 @@ bool compression::compress(Storage& storage, SSTable *sstable) {
       return false;
    }
 
-   fs::rename(tmp_path, file_path);
+   //non throwing, this runs on the flush and compaction threads where nothing catches
+   std::error_code ec;
+   fs::rename(tmp_path, file_path, ec);
+   if(ec) {
+      std::println("Failed to rename {} to {}: {}", tmp_path, file_path, ec.message());
+      return false;
+   }
    fsync(fd);
 
    return true;
@@ -219,7 +231,35 @@ void compression::encode_index(std::vector<uint64_t>& out, const std::unordered_
    out.push_back(static_cast<uint64_t>(base_offset) + 8);
 }
 
-// BLOCK 1 | BLOCK 2 | INDEX | 8 byte integer storing offset to index
+//global min/max of ts and price across every symbol in the file
+FileManifest compression::encode_summary(std::vector<uint64_t>& out, const std::unordered_map<uint64_t, FileMetadata>& metadata) {
+
+   uint64_t max_ts {0}, min_ts {std::numeric_limits<uint64_t>::max()};
+   uint64_t max_price {0}, min_price {std::numeric_limits<uint64_t>::max()};
+
+   //symbol scope min/max already covers every block for that symbol
+   for(const auto& [key, val] : metadata) {
+      max_ts = std::max(max_ts, val.max_ts);
+      min_ts = std::min(min_ts, val.min_ts);
+      max_price = std::max(max_price, val.max_price);
+      min_price = std::min(min_price, val.min_price);
+   }
+
+   FileManifest manifest;
+   manifest.fmax_ts = max_ts;
+   manifest.fmin_ts = min_ts;
+   manifest.fmax_price = max_price;
+   manifest.fmin_price = min_price;
+
+   out.push_back(manifest.fmax_ts);
+   out.push_back(manifest.fmin_ts);
+   out.push_back(manifest.fmax_price);
+   out.push_back(manifest.fmin_price);
+
+   return manifest;
+}
+
+// BLOCK 1 | BLOCK 2 | SUMMARY | INDEX | 8 byte offset to index | 8 byte offset to summary
 std::unordered_map<uint64_t, FileMetadata> compression::decode_index(Storage& storage, const uint64_t file_counter) {
 
    const std::string file_path = std::format("{}{:06}.goose", storage.goose_folder_name, file_counter);
@@ -233,13 +273,13 @@ std::unordered_map<uint64_t, FileMetadata> compression::decode_index(Storage& st
    }
 
    uint64_t index_offset {0};
-   //reads last 8 bytes of file
-   pread(fd, &index_offset, 8, file_size - 8);
+   //index offset is the second to last 8 bytes, last 8 are the summary offset
+   pread(fd, &index_offset, 8, file_size - 16);
 
-   const size_t index_size = file_size - 8 - index_offset;
+   const size_t index_size = file_size - 16 - index_offset;
 
    std::vector<uint64_t> in(index_size / 8);
-  
+
    //read full index into buffer
    pread(fd, in.data(), index_size, index_offset);
 
@@ -263,7 +303,7 @@ std::unordered_map<uint64_t, FileMetadata> compression::get_index(std::filesyste
    if(fd == -1) return metadata;
 
    struct stat st;
-   if(fstat(fd, &st) != 0 || st.st_size < 8) {
+   if(fstat(fd, &st) != 0 || st.st_size < 16) {
       close(fd);
       return metadata;
    }
@@ -271,13 +311,13 @@ std::unordered_map<uint64_t, FileMetadata> compression::get_index(std::filesyste
    const uint64_t file_size = st.st_size;
 
    uint64_t index_offset {0};
-   //reads last 8 bytes of file
-   if(pread(fd, &index_offset, 8, file_size - 8) != 8 || index_offset > file_size - 8) {
+   //index offset is the second to last 8 bytes, last 8 are the summary offset
+   if(pread(fd, &index_offset, 8, file_size - 16) != 8 || index_offset > file_size - 16) {
       close(fd);
       return metadata;
    }
 
-   const size_t index_size = file_size - 8 - index_offset;
+   const size_t index_size = file_size - 16 - index_offset;
 
    std::vector<uint64_t> in(index_size / 8);
 

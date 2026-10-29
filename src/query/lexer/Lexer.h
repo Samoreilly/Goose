@@ -12,9 +12,8 @@ struct Time {
 };
 
 struct Query {
-    std::vector<std::string> columns;//ts, price, vol
     std::vector<std::string> symbols;//MSFT
-    std::vector<Time> ranges;//start..end
+    Time range;//start..end
 };
 
 
@@ -27,6 +26,6 @@ public:
     Lexer() {}
 
     //returns an empty Query if the query is invalid
-    Query parse(const std::string& query);
+    Query lex(const std::string& query);
 
 };

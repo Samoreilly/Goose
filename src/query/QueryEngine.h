@@ -8,25 +8,11 @@
 #include <atomic>
 #include <semaphore>
 #include <string>
+#include <deque>
 
 #include "lexer/Lexer.h"
-
-struct QueryHandling {
-    std::string query;
-    std::atomic<bool> handled {false};
-
-    QueryHandling(std::string q) : query(std::move(q)) {}
-
-    //for vector resizing
-    QueryHandling(QueryHandling&& other) noexcept 
-        : query(std::move(other.query)), 
-          handled(other.handled.load()) {}
-
-    QueryHandling(const QueryHandling&) = delete;
-    QueryHandling& operator=(const QueryHandling&) = delete;
-
-};
-
+#include "parser/Parser.h"
+#include "../engine/storage/Layout/Storage.h"
 
 /*
 This class will be responsible for running the thread that intakes queries
@@ -34,7 +20,9 @@ and forwarding it onto the query pipeline
 */
 class QueryEngine {
 
-    Lexer& lexer;
+    Storage& storage;
+    Parser parser;
+    Lexer lexer;
 
     std::thread query;  
     std::array<std::thread, 3> workers;
@@ -43,13 +31,14 @@ class QueryEngine {
     void handle();
 
     std::mutex mu;
-    std::vector<QueryHandling> queries;
+    std::deque<std::string> queries;
 
-    std::counting_semaphore<3> sem{3};
+    //3 concurrent queries max
+    std::counting_semaphore<3> sem{0};
 
 public:
 
-    QueryEngine(Lexer& l) : lexer(l) {
+    QueryEngine(Storage& s) : storage(s), parser(storage) {
         
         if(query.joinable()) {
             query.join();

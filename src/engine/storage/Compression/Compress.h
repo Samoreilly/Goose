@@ -6,13 +6,14 @@
 
 #include "../SSTable/SSTable.h"
 #include "../Layout/Storage.h"
+#include "../Index/Index.h"
 
 /*
 Delta of Delta for timestamp and price, Delta for vol
 */
 
 //File format
-// BLOCK 1 | BLOCK 2 | INDEX | 8 byte integer storing offset to index
+// BLOCK 1 | BLOCK 2 | SUMMARY | INDEX | 8 byte offset to index | 8 byte offset to summary
 namespace compression {
 
 
@@ -126,6 +127,9 @@ namespace compression {
 
     //will contain all metadata for blocks 
     void encode_index(std::vector<uint64_t>& out, const std::unordered_map<uint64_t, FileMetadata>& metadata, size_t base_offset);
+
+    //fills the file wide summary (min/max ts and price) and appends it to out
+    FileManifest encode_summary(std::vector<uint64_t>& out, const std::unordered_map<uint64_t, FileMetadata>& metadata);
     
     //decoding SSTable's will occur in the background on start.
     //Undecided how these will be loaded on start

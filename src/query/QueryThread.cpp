@@ -1,53 +1,44 @@
 
 #include "QueryEngine.h"
-#include <atomic>
+#include "parser/Parser.h"
 
 
 void QueryEngine::listen() {
 
    while(true) {
 
-      //http request or ws connection
+      //blocking http request or ws connection
       std::string query {"GET * MSFT BETWEEN 01-12-2002..14-10-2013"};
 
       {
          std::lock_guard<std::mutex> lock{mu};
-         queries.emplace_back(query);
+         queries.emplace_back(std::move(query));
       }
 
-      
-
+      sem.release();
    }
 
 }
 
 void QueryEngine::handle() {
 
-   auto get_new_query = [&]() -> QueryHandling* {
-      for(auto it = queries.rbegin(); it != queries.rend();it++) {
-         bool expected {false};
-         //changes it to true, if false in 1 atomic instruction
-         if(it->handled.compare_exchange_strong(expected, true)) {
-            return &*it;
-         }
-      }
-      return nullptr;
-   };
-
    while(true) {
 
       sem.acquire();
-      
-      auto& query_handler = queries.back();
-      
-      //true means its being handled
-      if(query_handler.handled.load(std::memory_order_acquire)) {
-         query_handler = get_new_query();
+
+      std::string query;
+
+      {
+         std::lock_guard<std::mutex> lock(mu);
+         query = queries.front();
+         queries.pop_front();
       }
 
-      lexer.parse(query_handler.query);
+      Query lexed_query = lexer.lex(query);
 
-      sem.release();
+      parser.parse(std::move(lexed_query));
+
+
    }
 }
 
